@@ -58,7 +58,7 @@ begin
   ArquivoIni := ExtractFilePath(Application.ExeName) + 'Parceiro.ini';
   if not FileExists(ArquivoIni) then
   begin
-    MessageDlg('Arquivo config.ini não encontrado!', mtInformation,[mbOK],0);
+    MessageDlg('Arquivo Parceiro.ini não encontrado!', mtInformation,[mbOK],0);
     Exit;
   end;
 
