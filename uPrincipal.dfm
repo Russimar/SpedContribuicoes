@@ -160,7 +160,6 @@ object frmPrincipal: TfrmPrincipal
         Align = alTop
         BevelOuter = bvNone
         TabOrder = 1
-        ExplicitTop = 30
         object Gauge1: TGauge
           Left = 0
           Top = 0

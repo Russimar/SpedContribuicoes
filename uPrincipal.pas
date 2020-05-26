@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.DBCtrls, Vcl.ComCtrls,
   Vcl.ExtCtrls, Vcl.Buttons, ACBrBase, ACBrSpedPisCofins, uDMSpedPisCofins,
-  Data.DB, Vcl.Grids, Vcl.DBGrids, Vcl.Samples.Gauges;
+  Data.DB, Vcl.Grids, Vcl.DBGrids, Vcl.Samples.Gauges, System.DateUtils;
 
 type
   TfrmPrincipal = class(TForm)
@@ -140,9 +140,15 @@ begin
   end;
   with fDMSpedPisCofins do
   begin
+    Gauge1.MinValue := 0;
+    Gauge1.MaxValue := 2;
     Gerar_Bloco_0;
     Gerar_Bloco_A;
+    Gauge1.AddProgress(1);
+    Gauge1.Update;
     Gerar_Bloco_C;
+    Gauge1.AddProgress(1);
+    Gauge1.Update;
     GravarTxt;
   end;
   pnlRegistro.Caption := 'Arquivo Gerado!';
@@ -189,6 +195,8 @@ begin
   fDMSpedPisCofins := TDMSpedPisCofins.Create(nil);
   fDMSpedPisCofins.evMsg := evMensagem;
   fDMSpedPisCofins.evProgresso := evProgressao;
+  para.Date := StartOfTheMonth(date()) - 1;
+  de.Date := StartOfTheMonth(para.date);
 end;
 
 procedure TfrmPrincipal.FormShow(Sender: TObject);
