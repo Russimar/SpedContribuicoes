@@ -17,6 +17,7 @@ type
 type
   tEvMensagem = procedure(Mensagem : String) of Object;
   tEvProgressao = procedure(Posicao : Integer) of Object;
+  tEvMaxProgress = procedure(Max : Integer) of Object;
 
 type
   TDMSpedPisCofins = class(TDataModule)
@@ -151,6 +152,8 @@ type
     FevProgressao: tEvProgressao;
     FevMsg: tEvMensagem;
     FPosicao: Integer;
+    FMax : Integer;
+    FevMax : tEvMaxProgress;
     DataDocumento : String;
     NroDocumento : String;
     EntradaSaida : String;
@@ -161,6 +164,7 @@ type
     procedure Gravar_C100;
     procedure SetMsg(const Value: String);
     procedure setPosicao(const Value: Integer);
+    procedure setMax(const Value : Integer);
   public
     { Public declarations }
     fDMConnection : TDMConnection;
@@ -177,10 +181,8 @@ type
     procedure Gerar_Bloco_0;
     procedure Gerar_Bloco_0_Reg0000;
     procedure Gerar_Bloco_0_Reg0001;
-    procedure Gerar_Bloco_0_Reg0035;
     procedure Gerar_Bloco_0_Reg0100;
     procedure Gerar_Bloco_0_Reg0110;
-    procedure Gerar_Bloco_0_Reg0111;
     procedure Gerar_Bloco_0_Reg0120;
     procedure Gerar_Bloco_0_Reg0140;
     procedure Gerar_Bloco_0_Reg0150;
@@ -188,8 +190,6 @@ type
     procedure Gerar_Bloco_0_Reg0200;
     procedure Gerar_Bloco_0_Reg0400;
     procedure Gerar_Bloco_0_Reg0500;
-    procedure Gerar_Bloco_0_Reg0600;
-    procedure Gerar_Bloco_0_Reg0990;
     procedure Gerar_Bloco_A;
 
     procedure Gerar_Bloco_C;
@@ -200,12 +200,9 @@ type
     procedure Gerar_Bloco_M_RegM001;
     procedure Gerar_Bloco_M_RegM100;
     procedure Gerar_Bloco_M_RegM200;
-    procedure Gerar_Bloco_M_RegM210;
     procedure Gerar_Bloco_M_RegM400;
-    procedure Gerar_Bloco_M_RegM410;
     procedure Gerar_Bloco_M_RegM500;
     procedure Gerar_Bloco_M_RegM600;
-    procedure Gerar_Bloco_M_RegM610;
     procedure Gerar_Bloco_M_RegM800;
     procedure Gerar_Blcoo_M_RegM810;
 
@@ -215,6 +212,8 @@ type
     property evProgresso : tEvProgressao read FevProgressao write FevProgressao;
     property Msg : String read FMsg write SetMsg;
     property Posicao : Integer read FPosicao write setPosicao;
+    property Max : Integer read FMax write setMax;
+    property evMax : tEvMaxProgress read FevMax write FevMax;
   end;
 
 var
@@ -252,19 +251,17 @@ procedure TDMSpedPisCofins.Gerar_Bloco_0;
 begin
   Gerar_Bloco_0_Reg0000;
   Gerar_Bloco_0_Reg0001;
-  Gerar_Bloco_0_Reg0035;  //nao usado
+//  Gerar_Bloco_0_Reg0035;  //nao usado
   Gerar_Bloco_0_Reg0100;
   Gerar_Bloco_0_Reg0110;
-  Gerar_Bloco_0_Reg0111;  //nao usado
-  Gerar_Bloco_0_Reg0120;  //nao usado
+//  Gerar_Bloco_0_Reg0111;  //nao usado
+//  Gerar_Bloco_0_Reg0120;  //nao usado
   Gerar_Bloco_0_Reg0140;
   Gerar_Bloco_0_Reg0150;
   Gerar_Bloco_0_Reg0190;
   Gerar_Bloco_0_Reg0200;
   Gerar_Bloco_0_Reg0400;
   Gerar_Bloco_0_Reg0500;
-  Gerar_Bloco_0_Reg0600;
-  Gerar_Bloco_0_Reg0990;
 end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0000;
@@ -321,9 +318,9 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0001;
 begin
+  Msg := 'Gerando registro 0001';
   with ACBrSPEDPisCofins1.Bloco_0.Registro0001New do
   begin
-    Msg := 'Gerando registro 0001';
     if Ind_Movimento then
       IND_MOV := imComDados
     else
@@ -331,16 +328,12 @@ begin
   end;
 end;
 
-procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0035;
-begin
-//
-end;
-
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0100;
 begin
+  Msg := 'Gerando registro 0100';
   with ACBrSPEDPisCofins1.Bloco_0.Registro0100New do
   begin
-    Msg := 'Gerando registro 0100';
+
     NOME := qryEmpresaEMPRA60CONTADOR.AsString;
     CPF := qryEmpresaEMPRA20CPFCONTADOR.AsString;
     CRC := qryEmpresaEMPRA15CRCCONTADOR.AsString;
@@ -359,9 +352,9 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0110;
 begin
+  Msg := 'Gerando registro 0110';
   with ACBrSPEDPisCofins1.Bloco_0.Registro0001New.Registro0110 do
   begin
-    Msg := 'Gerando registro 0110';
     case Ind_Incidencia of
       tpEscrOpIncNaoCumulativo : COD_INC_TRIB := codEscrOpIncNaoCumulativo;
       tpEscrOpIncCumulativo    : COD_INC_TRIB := codEscrOpIncCumulativo;
@@ -386,25 +379,15 @@ begin
   end;
 end;
 
-procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0111;
-begin
-//
-end;
-
-procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0120;
-begin
-//
-end;
-
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0140;
 begin
+  Msg := 'Gerando registro 0140';
   with ACBrSPEDPisCofins1.Bloco_0 do
   begin
     with Registro0001New do
     begin
       with Registro0140New do
       begin
-        Msg := 'Gerando registro 0140';
         COD_EST := qryEmpresaEMPRICOD.AsString;
         NOME := qryEmpresaEMPRA60RAZAOSOC.AsString;
         CNPJ := qryEmpresaEMPRA14CGC.AsString;
@@ -423,10 +406,15 @@ begin
   with ACBrSPEDPisCofins1.Bloco_0 do
   begin
     //Registros Participantes
+    Msg := 'Aguarde...Verificando Participantes!';
     Gravar_0150;
     sqlParticipantes.First;
+    Posicao := 0;
+    sqlParticipantes.FetchAll;
+    Max := sqlParticipantes.RecordCount;
     while not sqlParticipantes.Eof do
     begin
+      Posicao := Posicao + 1;
       with Registro0150New do
       begin
         Msg := 'Gerando registro 0150';
@@ -453,10 +441,14 @@ begin
   with ACBrSPEDPisCofins1.Bloco_0 do
   begin
     //Registros Unidade de Medida
+    Msg := 'Aguarde...Verificando Unidades!';
+    Posicao := 0;
     Gravar_0190;
     sqlUnidades.First;
+    Max := sqlUnidades.RecordCount;
     while not sqlUnidades.Eof do
     begin
+      Posicao := Posicao + 1;
       with Registro0190New do
       begin
         Msg := 'Gerando registro 0190';
@@ -471,16 +463,21 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0200;
 begin
+  Msg := 'Aguarde...Verificando Produtos!';
   with ACBrSPEDPisCofins1.Bloco_0 do
   begin
     //Registros Produtos
     Gravar_0200;
     sqlProduto.First;
+    Posicao := 0;
+    sqlProduto.FetchAll;
+    Max := sqlProduto.RecordCount;
     while not sqlProduto.Eof do
     begin
       with Registro0200New do
       begin
-        Msg := 'Gerando registro 0200 - Cod:' + sqlProdutoCOD_ITEM.AsString;
+        Posicao := Posicao + 1;
+        Msg := 'Gerando registro 0200 - ' + sqlProdutoDESCRICAO.AsString;
         COD_ITEM     := sqlProdutoCOD_ITEM.AsString;
         DESCR_ITEM   := sqlProdutoDESCRICAO.AsString;
         COD_BARRA    := sqlProdutoCODIGOBARRAS.AsString;
@@ -515,19 +512,23 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0400;
 begin
+  Msg := 'Gerando registro 0400';
   sqlOperacao.Close;
   sqlOperacao.ParamByName('datainicial').AsDate := DataInicial;
   sqlOperacao.ParamByName('datafinal').AsDate := DataFinal;
   sqlOperacao.Open;
+  Posicao := 0;
+  sqlOperacao.FetchAll;
+  Max := sqlOperacao.RecordCount;
   while not sqlOperacao.Eof do
   begin
+    Posicao := Posicao + 1;
     with ACBrSPEDPisCofins1.Bloco_0 do
     begin
       with Registro0001New do
       begin
         with Registro0400New do
         begin
-          Msg := 'Gerando registro 0400';
           COD_NAT   := sqlOperacaoCOD_OPE.AsString;
           DESCR_NAT := sqlOperacaoOPESA60DESCR.AsString;
         end;
@@ -542,18 +543,22 @@ end;
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0500;
 begin
       // REGISTRO 0500: PLANO DE CONTAS CONTÁBEIS
+  Msg := 'Gerando registro 0500';
   sqlPlanoContas.Close;
   sqlPlanoContas.Open;
   sqlPlanoContas.First;
+  Posicao := 0;
+  sqlPlanoContas.FetchAll;
+  Max := sqlPlanoContas.RecordCount;
   while not sqlPlanoContas.Eof do
   begin
+    Posicao := Posicao + 1;
     with ACBrSPEDPisCofins1.Bloco_0 do
     begin
       with Registro0001New do
       begin
         with Registro0500New do
         begin
-          Msg := 'Gerando registro 0500';
           COD_CTA := sqlPlanoContasPLCTA15COD.AsString;
           DT_ALT := sqlPlanoContasREGISTRO.AsDateTime;
           if copy(sqlPlanoContasPLCTA15COD.AsString,1,1) = '1' then
@@ -574,15 +579,6 @@ begin
     Application.ProcessMessages;
     sqlPlanoContas.Next;
   end;
-end;
-
-procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0600;
-begin
-
-end;
-
-procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0990;
-begin
 end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_A;
@@ -625,6 +621,7 @@ var
   ValorBase : Real;
   Quantidade : Real;
 begin
+  Msg := 'Gerando registro C100';
   with ACBrSPEDPisCofins1.Bloco_C do
   begin
     with RegistroC001New do
@@ -634,6 +631,7 @@ begin
         CNPJ := qryEmpresaEMPRA14CGC.AsString;
         IND_ESCRI := IndEscriIndividualizado;
 
+        {$Region 'Cupom Fiscal'}
         //Gera cupom fiscal
         Msg := 'Abrindo cupom Fiscal';
         sqlConsulta.Close;
@@ -644,8 +642,12 @@ begin
         sqlConsulta.SQL.Add('N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString + ' AND (N.CUPOCSTATUS = ''A'' or N.CUPOCSTATUS = ''C'') ');
         sqlConsulta.SQL.Add('AND N.CHAVEACESSO is not null AND COALESCE(N.STNFE,' + QuotedStr('') + ') <> ' + QuotedStr(''));
         sqlConsulta.Open;
+        Posicao := 0;
+        sqlConsulta.FetchAll;
+        Max := sqlConsulta.RecordCount;
         while not sqlConsulta.Eof do
         begin
+          Posicao := Posicao + 1;
           Msg := 'Gerando cupom nº: ' + sqlConsulta.FieldByName('CUPOINRO').AsString;
           with RegistroC100New do
           begin
@@ -739,8 +741,10 @@ begin
           Application.ProcessMessages;
           sqlConsulta.Next;
         end;
+        {$EndRegion }
 
         {$Region 'Nota Fiscal'}
+        Msg := 'Abrindo Notas Fiscais';
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;
         sqlConsulta.SQL.Add('Select N.*, C.CLIEA60CIDRES, F.FORNA60CID, E.EMPRA60CID from NOTAFISCAL N ');
@@ -752,8 +756,13 @@ begin
         sqlConsulta.SQL.Add('N.EMPRICOD='+qryEmpresaEMPRICOD.AsString+' AND N.NOFICSTATUS <> ''A'' and ');
         sqlConsulta.SQL.Add('COALESCE(N.NOFIA5CODRETORNO, ' + QuotedStr('') + ') <> ' + QuotedStr(''));
         sqlConsulta.Open;
+        Posicao := 0;
+        sqlConsulta.FetchAll;
+        Max := sqlConsulta.RecordCount;
         while not sqlConsulta.Eof do
         begin
+          Posicao := Posicao + 1;
+          Msg := 'Gerando Nota nº: ' + sqlConsulta.FieldByName('NOFIINUMERO').AsString;
           with RegistroC100New do
           begin
             sqlConsulta2.Close;
@@ -1027,9 +1036,13 @@ begin
         sqlConsulta.SQL.Add('(N.NOCPCSTATUS = ''E'' or N.NOCPCSTATUS = ''C'') ');
         sqlConsulta.SQL.Add('order by N.NOCPDEMISSAO');
         sqlConsulta.Open;
+        Posicao := 0;
+        sqlConsulta.FetchAll;
+        Max := sqlConsulta.RecordCount;
         while not sqlConsulta.Eof do
         begin
-        Msg := 'Gerando Notas do dia ' + FormatDateTime('dd.mm.yyyy', sqlConsulta.FieldByName('NOCPDEMISSAO').AsDateTime);
+          Posicao := Posicao + 1;
+          Msg := 'Gerando Notas do dia ' + FormatDateTime('dd.mm.yyyy', sqlConsulta.FieldByName('NOCPDEMISSAO').AsDateTime);
           with RegistroC100New do
           begin
             sqlConsulta2.Close;
@@ -1273,10 +1286,14 @@ begin
   sqlConsulta2.SQL.Add('group by SP.CST_PIS, SP.ALIQ_PIS');
 
   sqlConsulta2.Open;
+  Posicao := 0;
+  sqlConsulta.FetchAll;
+  Max := sqlConsulta.RecordCount;
 
   Mem100.CreateDataSet;
   while not sqlConsulta.Eof do
   begin
+    Posicao := Posicao + 1;
     Mem100.Append;
     if sqlConsulta.FieldByName('PERC_PIS').AsFloat = Aliq_Pis_Empresa then
       Mem100CodigoCredito.AsInteger := 101
@@ -1355,13 +1372,9 @@ begin
   end;
 end;
 
-procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM210;
-begin
-
-end;
-
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM400;
 begin
+  Msg := 'Gerando registro M400';
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('select sum(SP.VALOR_BASE) VALOR_BASE, sum(SP.valor_pis) VALOR_PIS, ');
@@ -1374,8 +1387,14 @@ begin
   sqlConsulta.Open;
   Mem400.CreateDataSet;
   sqlConsulta.First;
+
+  Posicao := 0;
+  sqlConsulta.FetchAll;
+  Max := sqlConsulta.RecordCount;
+
   while not sqlConsulta.Eof do
   begin
+    Posicao := Posicao + 1;
     if Mem400.Locate('CST_PIS', sqlConsulta.FieldByName('CST_PIS').AsString,[loCaseInsensitive]) then
       Mem400.Edit
     else
@@ -1417,10 +1436,6 @@ begin
   end;
 end;
 
-procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM410;
-begin
-
-end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM500;
 var
@@ -1431,6 +1446,7 @@ begin
   Aliq_Cofins_Empresa := StrToFloat(SQLLocate('EMPRESA','EMPRICOD','PERC_COFINS',qryEmpresaEMPRICOD.AsString));
   Aliq_Cofins_Empresa := StrToFloatDef(FormatFloat('0.00',Aliq_Cofins_Empresa),0);
 
+  Msg := 'Gerando registro M100';
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('Select sum(SP.VALOR_BASE_COFINS) VALOR_BASE_COFINS, ');
@@ -1452,9 +1468,14 @@ begin
   sqlConsulta2.SQL.Add('group by SP.CST_COFINS, SP.ALIQ_COFINS');
   sqlConsulta2.Open;
 
+  Posicao := 0;
+  sqlConsulta.FetchAll;
+  Max := sqlConsulta.RecordCount;
+
   Mem500.CreateDataSet;
   while not sqlConsulta.Eof do
   begin
+    Posicao := Posicao + 1;
     Mem500.Append;
     if sqlConsulta.FieldByName('PERC_COFINS').AsFloat = Aliq_Cofins_Empresa then
       Mem500CodigoCredito.AsInteger := 101
@@ -1534,13 +1555,9 @@ begin
 end;
 
 
-procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM610;
-begin
-
-end;
-
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM800;
 begin
+  Msg := 'Gerando registro M500';
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('select sum(SP.VALOR_BASE) VALOR_BASE, sum(SP.valor_cofins) VALOR_COFINS, ');
@@ -1553,8 +1570,12 @@ begin
   sqlConsulta.Open;
   Mem800.CreateDataSet;
   sqlConsulta.First;
+  Posicao := 0;
+  sqlConsulta.FetchAll;
+  Max := sqlConsulta.RecordCount;
   while not sqlConsulta.Eof do
   begin
+    Posicao := Posicao + 1;
     if Mem800.Locate('CST_COFINS', sqlConsulta.FieldByName('CST_COFINS').AsString,[loCaseInsensitive]) then
       Mem800.Edit
     else
@@ -2032,6 +2053,12 @@ procedure TDMSpedPisCofins.Gravar_C100;
 begin
 
 
+end;
+
+procedure TDMSpedPisCofins.setMax(const Value: Integer);
+begin
+  if Assigned(FevMax) then
+    FevMax(Value);
 end;
 
 procedure TDMSpedPisCofins.SetMsg(const Value: String);

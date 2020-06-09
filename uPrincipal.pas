@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.DBCtrls, Vcl.ComCtrls,
   Vcl.ExtCtrls, Vcl.Buttons, ACBrBase, ACBrSpedPisCofins, uDMSpedPisCofins,
-  Data.DB, Vcl.Grids, Vcl.DBGrids, Vcl.Samples.Gauges, System.DateUtils;
+  Data.DB, Vcl.Grids, Vcl.DBGrids, Vcl.Samples.Gauges, System.DateUtils, FileCtrl;
 
 type
   TfrmPrincipal = class(TForm)
@@ -35,18 +35,17 @@ type
     Label8: TLabel;
     Label9: TLabel;
     Label10: TLabel;
-    BitBtn1: TBitBtn;
     pnlProgress: TPanel;
-    BitBtn2: TBitBtn;
-    Memo1: TMemo;
-    pnlRegistro: TPanel;
     pnlGauge: TPanel;
+    BitBtn1: TBitBtn;
     Gauge1: TGauge;
+    pnlRegistro: TPanel;
+    btnDiretorio: TBitBtn;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure BitBtn1Click(Sender: TObject);
-    procedure BitBtn2Click(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure btnDiretorioClick(Sender: TObject);
   private
       Arquivo : TextFile;
       TotalRegistros : integer;
@@ -56,6 +55,7 @@ type
     fDMSpedPisCofins : TDMSpedPisCofins;
     procedure evMensagem(Msg : String);
     procedure evProgressao(Posicao : Integer);
+    procedure evMaxProgress(Max : Integer);
   end;
 
 var
@@ -67,6 +67,7 @@ implementation
 
 procedure TfrmPrincipal.BitBtn1Click(Sender: TObject);
 begin
+  pnlRegistro.Font.Color := clGreen;
 
   TotalRegistros  := 0;
   if (De.Date = null) or (Para.Date = null) then
@@ -89,26 +90,14 @@ begin
 
   with fDMSpedPisCofins do
   begin
-    CaminhoArquivo := UpperCase(ExtractFilePath(Application.ExeName)) + 'SPED\';
+    if CaminhoArquivo = EmptyStr then
+      CaminhoArquivo := UpperCase(ExtractFilePath(Application.ExeName)) + 'SPED\';
     NomeArquivo := 'Sped_PisCofins_'+ fDMSpedPisCofins.qryEmpresaEMPRA60NOMEFANT.AsString +
-                 '_' +FormatDateTime('ddmmyyyy',De.date)+
-                 '_'+FormatDateTime('ddmmyyyy',Para.Date)+'.TXT';
+                   '_' +FormatDateTime('ddmmyyyy',De.date)+
+                   '_'+FormatDateTime('ddmmyyyy',Para.Date)+'.TXT';
     edtCaminho.Text := CaminhoArquivo + NomeArquivo;
     edtCaminho.Update;
   end;
-
-
-//  try
-//    AssignFile(Arquivo,edtCaminho.Text);
-//    Rewrite(Arquivo);
-//    CloseFile(Arquivo);
-//  except
-//    on E:Exception Do
-//    begin
-//      Showmessage('Falha ao Criar Arquivo: '+E.message);
-//      Exit;
-//    end;
-//  end;
 
   with fDMSpedPisCofins do
   begin
@@ -140,40 +129,36 @@ begin
   end;
   with fDMSpedPisCofins do
   begin
-    Gauge1.MinValue := 0;
-    Gauge1.MaxValue := 2;
     Gerar_Bloco_0;
     Gerar_Bloco_A;
-    Gauge1.AddProgress(1);
-    Gauge1.Update;
     Gerar_Bloco_C;
-    Gauge1.AddProgress(1);
-    Gauge1.Update;
     Gerar_Bloco_M;
-    Gauge1.AddProgress(1);
-    Gauge1.Update;
     GravarTxt;
   end;
   pnlRegistro.Caption := 'Arquivo Gerado!';
+  pnlRegistro.Font.Color := clRed;
   pnlRegistro.Update;
-
 end;
 
-procedure TfrmPrincipal.BitBtn2Click(Sender: TObject);
+procedure TfrmPrincipal.btnDiretorioClick(Sender: TObject);
+const
+  SELDIRHELP = 1000;
+var
+  Dir : String;
 begin
-  fDMSpedPisCofins.ACBrSPEDPisCofins1.LinhasBuffer := 1000;
-  fDMSpedPisCofins.ACBrSPEDPisCofins1.Path := 'c:\temp';
-  fDMSpedPisCofins.ACBrSPEDPisCofins1.Arquivo := 'SPED_Fiscal_.txt';
-  fDMSpedPisCofins.ACBrSPEDPisCofins1.DT_INI := de.Date;
-  fDMSpedPisCofins.ACBrSPEDPisCofins1.DT_FIN := para.Date;
-  fDMSpedPisCofins.ACBrSPEDPisCofins1.IniciaGeracao;
+  Dir := fDMSpedPisCofins.CaminhoArquivo;
+  if FileCtrl.SelectDirectory(Dir,[sdAllowCreate, sdPerformCreate, sdPrompt], SELDIRHELP) then
+  begin
+    fDMSpedPisCofins.CaminhoArquivo := Dir + '\';
+    edtCaminho.Text := fDMSpedPisCofins.CaminhoArquivo;
+  end;
+end;
 
-
-  fDMSpedPisCofins.ACBrSPEDPisCofins1.SaveFileTXT;
-  if FileExists(fDMSpedPisCofins.ACBrSPEDPisCofins1.Path + fDMSpedPisCofins.ACBrSPEDPisCofins1.Arquivo) then
-    memo1.Lines.LoadFromFile(fDMSpedPisCofins.ACBrSPEDPisCofins1.Path + fDMSpedPisCofins.ACBrSPEDPisCofins1.Arquivo);
-  ShowMessage('Arquivo Gerado!');
-
+procedure TfrmPrincipal.evMaxProgress(Max: Integer);
+begin
+  Gauge1.MinValue := 0;
+  Gauge1.MaxValue := Max;
+  Gauge1.Update;
 end;
 
 procedure TfrmPrincipal.evMensagem(Msg: String);
@@ -184,7 +169,8 @@ end;
 
 procedure TfrmPrincipal.evProgressao(Posicao: Integer);
 begin
-  ProgressBar1.Position := Posicao;
+  Gauge1.AddProgress(Posicao);
+  Gauge1.Update;
 end;
 
 procedure TfrmPrincipal.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -198,6 +184,7 @@ begin
   fDMSpedPisCofins := TDMSpedPisCofins.Create(nil);
   fDMSpedPisCofins.evMsg := evMensagem;
   fDMSpedPisCofins.evProgresso := evProgressao;
+  fDMSpedPisCofins.evMax := evMaxProgress;
   para.Date := StartOfTheMonth(date()) - 1;
   de.Date := StartOfTheMonth(para.date);
 end;
