@@ -149,6 +149,9 @@ begin
     Gerar_Bloco_C;
     Gauge1.AddProgress(1);
     Gauge1.Update;
+    Gerar_Bloco_M;
+    Gauge1.AddProgress(1);
+    Gauge1.Update;
     GravarTxt;
   end;
   pnlRegistro.Caption := 'Arquivo Gerado!';

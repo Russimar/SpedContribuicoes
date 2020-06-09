@@ -512,7 +512,7 @@ object DMSpedPisCofins: TDMSpedPisCofins
         'N2ALIQPIS, P.PRODN2ALIQCOFINS, iif(P.PRODISITTRIB in ('#39'60'#39', '#39'500' +
         #39'), '#39'5405'#39', '#39'5102'#39')  ')
     Left = 248
-    Top = 128
+    Top = 136
     ParamData = <
       item
         Name = 'ID_CUPOM'
@@ -623,6 +623,136 @@ object DMSpedPisCofins: TDMSpedPisCofins
       Origin = 'SERIA2TIPONOTA'
       FixedChar = True
       Size = 2
+    end
+  end
+  object Mem100: TFDMemTable
+    IndexFieldNames = 'CodigoCredito'
+    FetchOptions.AssignedValues = [evMode]
+    FetchOptions.Mode = fmAll
+    ResourceOptions.AssignedValues = [rvSilentMode]
+    ResourceOptions.SilentMode = True
+    UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
+    UpdateOptions.CheckRequired = False
+    UpdateOptions.AutoCommitUpdates = True
+    Left = 400
+    Top = 144
+    object Mem100CodigoCredito: TIntegerField
+      FieldName = 'CodigoCredito'
+    end
+    object Mem100IndCredito: TStringField
+      FieldName = 'IndCredito'
+      Size = 1
+    end
+    object Mem100VlrBasePis: TFloatField
+      FieldName = 'VlrBasePis'
+    end
+    object Mem100AliqPis: TFloatField
+      FieldName = 'AliqPis'
+    end
+    object Mem100VlrCredito: TFloatField
+      FieldName = 'VlrCredito'
+    end
+    object Mem100VlrCreditoDisponivel: TFloatField
+      FieldName = 'VlrCreditoDisponivel'
+    end
+    object Mem100IndUtilCredito: TStringField
+      FieldName = 'IndUtilCredito'
+      Size = 1
+    end
+    object Mem100VlrCreditoDescontado: TFloatField
+      FieldName = 'VlrCreditoDescontado'
+    end
+    object Mem100SaldoCredito: TFloatField
+      FieldName = 'SaldoCredito'
+    end
+    object Mem100CST_PIS: TStringField
+      FieldName = 'CST_PIS'
+      Size = 2
+    end
+  end
+  object Mem400: TFDMemTable
+    FetchOptions.AssignedValues = [evMode]
+    FetchOptions.Mode = fmAll
+    ResourceOptions.AssignedValues = [rvSilentMode]
+    ResourceOptions.SilentMode = True
+    UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
+    UpdateOptions.CheckRequired = False
+    UpdateOptions.AutoCommitUpdates = True
+    Left = 464
+    Top = 144
+    object Mem400CST_Pis: TStringField
+      FieldName = 'CST_Pis'
+    end
+    object Mem400Valor: TFloatField
+      FieldName = 'Valor'
+    end
+    object Mem400PlanoConta: TStringField
+      FieldName = 'PlanoConta'
+    end
+  end
+  object Mem500: TFDMemTable
+    IndexFieldNames = 'CodigoCredito'
+    FetchOptions.AssignedValues = [evMode]
+    FetchOptions.Mode = fmAll
+    ResourceOptions.AssignedValues = [rvSilentMode]
+    ResourceOptions.SilentMode = True
+    UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
+    UpdateOptions.CheckRequired = False
+    UpdateOptions.AutoCommitUpdates = True
+    Left = 400
+    Top = 200
+    object Mem500CodigoCredito: TIntegerField
+      FieldName = 'CodigoCredito'
+    end
+    object Mem500IndCredito: TStringField
+      FieldName = 'IndCredito'
+      Size = 1
+    end
+    object Mem500VlrBaseCofins: TFloatField
+      FieldName = 'VlrBaseCofins'
+    end
+    object Mem500AliqCofins: TFloatField
+      FieldName = 'AliqCofins'
+    end
+    object Mem500VlrCredito: TFloatField
+      FieldName = 'VlrCredito'
+    end
+    object Mem500VlrCreditoDisponivel: TFloatField
+      FieldName = 'VlrCreditoDisponivel'
+    end
+    object Mem500IndUtilCredito: TStringField
+      FieldName = 'IndUtilCredito'
+      Size = 1
+    end
+    object Mem500VlrCreditoDescontado: TFloatField
+      FieldName = 'VlrCreditoDescontado'
+    end
+    object Mem500SaldoCredito: TFloatField
+      FieldName = 'SaldoCredito'
+    end
+    object Mem500CST_COFINS: TStringField
+      FieldName = 'CST_COFINS'
+      Size = 2
+    end
+  end
+  object Mem800: TFDMemTable
+    FetchOptions.AssignedValues = [evMode]
+    FetchOptions.Mode = fmAll
+    ResourceOptions.AssignedValues = [rvSilentMode]
+    ResourceOptions.SilentMode = True
+    UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
+    UpdateOptions.CheckRequired = False
+    UpdateOptions.AutoCommitUpdates = True
+    Left = 464
+    Top = 200
+    object Mem800CST_Cofins: TStringField
+      FieldName = 'CST_Cofins'
+    end
+    object Mem800Valor: TFloatField
+      FieldName = 'Valor'
+    end
+    object Mem800PlanoConta: TStringField
+      FieldName = 'PlanoConta'
     end
   end
 end
