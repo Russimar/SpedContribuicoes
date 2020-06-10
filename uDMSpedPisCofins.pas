@@ -183,7 +183,6 @@ type
     procedure Gerar_Bloco_0_Reg0001;
     procedure Gerar_Bloco_0_Reg0100;
     procedure Gerar_Bloco_0_Reg0110;
-    procedure Gerar_Bloco_0_Reg0120;
     procedure Gerar_Bloco_0_Reg0140;
     procedure Gerar_Bloco_0_Reg0150;
     procedure Gerar_Bloco_0_Reg0190;
@@ -725,13 +724,32 @@ begin
                 VL_OPR := sqlC175TOTAL_ITEM.AsFloat;
                 VL_DESC := sqlC175VALOR_DESCONTO.AsFloat;
                 CST_PIS := StrToCstPis(sqlC175PRODA2CSTPIS.AsString);
-                VL_BC_PIS := sqlC175TOTAL_ITEM.AsFloat;
+                if sqlC175PRODA2CSTPIS.AsString <> '05' then
+                begin
+                  VL_BC_PIS := sqlC175TOTAL_ITEM.AsFloat;
+                  VL_PIS := sqlC175VALOR_PIS.AsFloat;
+                end
+                else
+                begin
+                  VL_BC_PIS := 0;
+                  VL_PIS := 0;
+                end;
+
                 ALIQ_PIS := sqlC175PRODN2ALIQPIS.AsFloat;
-                VL_PIS := sqlC175VALOR_PIS.AsFloat;
                 CST_COFINS := StrToCstCofins(sqlC175PRODA2CSTCOFINS.AsString);
-                VL_BC_COFINS := sqlC175TOTAL_ITEM.AsFloat;
+                if sqlC175PRODA2CSTCOFINS.AsString <> '05' then
+                begin
+                  VL_BC_COFINS := sqlC175TOTAL_ITEM.AsFloat;
+                  VL_COFINS := sqlC175VALOR_COFINS.AsFloat;
+                end
+                else
+                begin
+                  VL_BC_COFINS := 0;
+                  VL_COFINS := 0;
+                end;
+
                 ALIQ_COFINS := sqlC175PRODN2ALIQCOFINS.AsFloat;
-                VL_COFINS := sqlC175VALOR_COFINS.AsFloat;
+
                 COD_CTA := SQLLocate('OPERACAOESTOQUE','OPESICOD','PLCTA15CODCRED',sqlConsulta.FieldByName('OPESICOD').AsString);
                 INFO_COMPL := '';
               end;
@@ -1033,7 +1051,8 @@ begin
         sqlConsulta.SQL.Add('left join FORNECEDOR F on F.FORNICOD = N.FORNICOD ');
         sqlConsulta.SQL.Add('where N.NOCPDEMISSAO >= ''' + FormatDateTime('mm/dd/yyyy',DataInicial) + ''' AND ');
         sqlConsulta.SQL.Add('N.NOCPDEMISSAO <= ''' +FormatDateTime('mm/dd/yyyy',DataFinal) + ''' AND ');
-        sqlConsulta.SQL.Add('(N.NOCPCSTATUS = ''E'' or N.NOCPCSTATUS = ''C'') ');
+        sqlConsulta.SQL.Add('(N.NOCPCSTATUS = ''E'' or N.NOCPCSTATUS = ''C'') AND ');
+        sqlConsulta.SQL.Add('N.CFOPA5COD <> 1253');
         sqlConsulta.SQL.Add('order by N.NOCPDEMISSAO');
         sqlConsulta.Open;
         Posicao := 0;
@@ -1042,7 +1061,7 @@ begin
         while not sqlConsulta.Eof do
         begin
           Posicao := Posicao + 1;
-          Msg := 'Gerando Notas do dia ' + FormatDateTime('dd.mm.yyyy', sqlConsulta.FieldByName('NOCPDEMISSAO').AsDateTime);
+          Msg := 'Gerando notas de Compra do dia ' + FormatDateTime('dd.mm.yyyy', sqlConsulta.FieldByName('NOCPDEMISSAO').AsDateTime);
           with RegistroC100New do
           begin
             sqlConsulta2.Close;
@@ -1354,21 +1373,42 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM200;
 begin
-  with ACBrSPEDPisCofins1.Bloco_M.RegistroM200New do
+  sqlConsulta2.First;
+  while not sqlConsulta2.Eof do
   begin
-    sqlConsulta2.Locate('CST_PIS','01',[loCaseInsensitive]);
-    VL_TOT_CONT_NC_PER := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
-    VL_TOT_CRED_DESC := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
-  end;
-  with ACBrSPEDPisCofins1.Bloco_M.RegistroM210New do
-  begin
-    COD_CONT := StrToCodCont('01');
-    VL_REC_BRT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
-    VL_BC_CONT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
-    ALIQ_PIS := sqlConsulta2.FieldByName('ALIQ_PIS').AsFloat;
-    VL_CONT_APUR := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
-    VL_CONT_PER := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
-    VL_BC_CONT_AJUS := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+    if sqlConsulta2.FieldByName('CST_PIS').AsString = '01' then
+    begin
+      with ACBrSPEDPisCofins1.Bloco_M.RegistroM200New do
+      begin
+        VL_TOT_CONT_NC_PER := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
+        VL_TOT_CRED_DESC := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat
+      end;
+    end;
+
+    with ACBrSPEDPisCofins1.Bloco_M.RegistroM210New do
+    begin
+      if sqlConsulta2.FieldByName('CST_PIS').AsString = '01' then
+      begin
+        COD_CONT := StrToCodCont(sqlConsulta2.FieldByName('CST_PIS').AsString);
+        VL_REC_BRT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+        VL_BC_CONT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+        ALIQ_PIS := sqlConsulta2.FieldByName('ALIQ_PIS').AsFloat;
+        VL_CONT_APUR := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
+        VL_CONT_PER := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
+        VL_BC_CONT_AJUS := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+      end
+      else
+      begin
+        COD_CONT := StrToCodCont('32');
+        VL_REC_BRT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+        VL_BC_CONT := 0;
+        ALIQ_PIS := sqlConsulta2.FieldByName('ALIQ_PIS').AsFloat;
+        VL_CONT_APUR := 0;
+        VL_CONT_PER := 0;
+        VL_BC_CONT_AJUS := 0;
+      end;
+    end;
+    sqlConsulta2.Next;
   end;
 end;
 
@@ -1382,7 +1422,9 @@ begin
   sqlConsulta.SQL.Add('from SPED_PISCOFINS_SAIDA SP ');
   sqlConsulta.SQL.Add('WHERE SP.data_emissao between ' + QuotedStr(FormatDateTime('mm/dd/yyyy',DataInicial)) + ' AND ');
   sqlConsulta.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy',DataFinal)));
-  sqlConsulta.SQL.Add(' and (SP.CST_PIS between ' + QuotedStr('04') + ' and ' + QuotedStr('09') +')');
+  sqlConsulta.SQL.Add(' and SP.CST_PIS IN (');
+  sqlConsulta.SQL.Add(QuotedStr('04') + ',' + QuotedStr('06') + ', ' + QuotedStr('07')+ ', ');
+  sqlConsulta.SQL.Add(QuotedStr('08') + ', ' + QuotedStr('09') + ')' );
   sqlConsulta.SQL.Add('group by SP.CST_PIS, SP.NATUREZA_RECEITA, SP.CONTA');
   sqlConsulta.Open;
   Mem400.CreateDataSet;
@@ -1536,21 +1578,42 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM600;
 begin
-  with ACBrSPEDPisCofins1.Bloco_M.RegistroM600New do
+  sqlConsulta2.First;
+  while not sqlConsulta2.Eof do
   begin
-    sqlConsulta2.Locate('CST_COFINS','01',[loCaseInsensitive]);
-    VL_TOT_CONT_NC_PER := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
-    VL_TOT_CRED_DESC := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
-  end;
-  with ACBrSPEDPisCofins1.Bloco_M.RegistroM610New do
-  begin
-    COD_CONT := StrToCodCont('01');
-    VL_REC_BRT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
-    VL_BC_CONT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
-    ALIQ_COFINS := sqlConsulta2.FieldByName('ALIQ_COFINS').AsFloat;
-    VL_CONT_APUR := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
-    VL_CONT_PER := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
-    VL_BC_CONT_AJUS := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+    if sqlConsulta2.FieldByName('CST_COFINS').AsString = '01' then
+    begin
+      with ACBrSPEDPisCofins1.Bloco_M.RegistroM600New do
+      begin
+        VL_TOT_CONT_NC_PER := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
+        VL_TOT_CRED_DESC := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
+      end;
+    end;
+
+    with ACBrSPEDPisCofins1.Bloco_M.RegistroM610New do
+    begin
+      if sqlConsulta2.FieldByName('CST_COFINS').AsString = '01' then
+      begin
+        COD_CONT := StrToCodCont(sqlConsulta2.FieldByName('CST_COFINS').AsString);
+        VL_REC_BRT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+        VL_BC_CONT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+        ALIQ_COFINS := sqlConsulta2.FieldByName('ALIQ_COFINS').AsFloat;
+        VL_CONT_APUR := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
+        VL_CONT_PER := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
+        VL_BC_CONT_AJUS := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+      end
+      else
+      begin
+        COD_CONT := StrToCodCont('32');
+        VL_REC_BRT := sqlConsulta2.FieldByName('VALOR_BASE').AsFloat;
+        VL_BC_CONT := 0;
+        ALIQ_COFINS := sqlConsulta2.FieldByName('ALIQ_COFINS').AsFloat;
+        VL_CONT_APUR := 0;
+        VL_CONT_PER := 0;
+        VL_BC_CONT_AJUS := 0;
+      end;
+    end;
+    sqlConsulta2.Next;
   end;
 end;
 
@@ -1565,7 +1628,9 @@ begin
   sqlConsulta.SQL.Add('from SPED_PISCOFINS_SAIDA SP ');
   sqlConsulta.SQL.Add('WHERE SP.data_emissao between ' + QuotedStr(FormatDateTime('mm/dd/yyyy',DataInicial)) + ' AND ');
   sqlConsulta.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy',DataFinal)));
-  sqlConsulta.SQL.Add(' and (SP.CST_COFINS between ' + QuotedStr('04') + ' and ' + QuotedStr('09') +')');
+  sqlConsulta.SQL.Add(' and SP.CST_COFINS in (');
+  sqlConsulta.SQL.Add(QuotedStr('04') + ',' + QuotedStr('06') + ', ' + QuotedStr('07')+ ', ');
+  sqlConsulta.SQL.Add(QuotedStr('08') + ', ' + QuotedStr('09') + ')');
   sqlConsulta.SQL.Add('group by SP.CST_COFINS, SP.NATUREZA_RECEITA, SP.CONTA');
   sqlConsulta.Open;
   Mem800.CreateDataSet;
