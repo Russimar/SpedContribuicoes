@@ -194,6 +194,7 @@ type
     procedure Gerar_Bloco_C;
     procedure Gerar_Bloco_C_Regc001;
     procedure Gerar_Bloco_C_RegC100;
+    procedure Gerar_Bloco_C_RegC500;
 
     procedure Gerar_Bloco_M;
     procedure Gerar_Bloco_M_RegM001;
@@ -595,6 +596,7 @@ procedure TDMSpedPisCofins.Gerar_Bloco_C;
 begin
   Gerar_Bloco_C_Regc001;
   Gerar_Bloco_C_RegC100;
+  Gerar_Bloco_C_RegC500;
 end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_C_Regc001;
@@ -1052,6 +1054,7 @@ begin
         sqlConsulta.SQL.Add('where N.NOCPDEMISSAO >= ''' + FormatDateTime('mm/dd/yyyy',DataInicial) + ''' AND ');
         sqlConsulta.SQL.Add('N.NOCPDEMISSAO <= ''' +FormatDateTime('mm/dd/yyyy',DataFinal) + ''' AND ');
         sqlConsulta.SQL.Add('(N.NOCPCSTATUS = ''E'' or N.NOCPCSTATUS = ''C'') AND ');
+        sqlConsulta.SQL.Add('N.EMPRICOD = ' + QuotedStr(qryEmpresaEMPRICOD.AsString) + ' AND ');
         sqlConsulta.SQL.Add('N.CFOPA5COD <> 1253');
         sqlConsulta.SQL.Add('order by N.NOCPDEMISSAO');
         sqlConsulta.Open;
@@ -1253,6 +1256,91 @@ begin
   end;
 end;
 
+procedure TDMSpedPisCofins.Gerar_Bloco_C_RegC500;
+begin
+  sqlConsulta.Close;
+  sqlConsulta.SQL.Clear;
+  sqlConsulta.SQL.Add('Select ');
+  sqlConsulta.SQL.Add('(Select Sum((I.NOCIN3VLREMBAL * I.NOCIN3QTDEMBAL) * (p.prodn2aliqpis / 100)) from notacompraitem i left join produto p ');
+  sqlConsulta.SQL.Add('on p.prodicod = i.prodicod where i.nocpa13id = n.nocpa13id) as TOTAL_PIS, ');
+  sqlConsulta.SQL.Add('(select Sum((I.NOCIN3VLREMBAL * I.NOCIN3QTDEMBAL) * (p.prodn2aliqCofins / 100)) from notacompraitem i left join produto p ');
+  sqlConsulta.SQL.Add('on p.prodicod = i.prodicod where i.nocpa13id = n.nocpa13id) as TOTAL_COFINS, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN3VLREMBAL*I.NOCIN3QTDEMBAL) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS TOTAL_MERC, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN2VBC) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_BC_ICMS, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN3VLRICMS) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_ICMS, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN2VBCST) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_BC_ICMS_ST, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN3VLRSUBST) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_ICMS_ST, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN3VLRIPI) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_IPI, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN3VLRDESC) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_DESC, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN2VLRDESPESAS) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_OUTRAS, ');
+  sqlConsulta.SQL.Add('(Select SUM(I.NOCIN3VLRFRETE) from notacompraitem i where i.nocpa13id = n.nocpa13id) AS VL_FRETE, ');
+  sqlConsulta.SQL.Add('(select sum(I.NOCIN2BASEPIS) from NOTACOMPRAITEM I where I.NOCPA13ID = N.NOCPA13ID) as VL_BC_PIS, ');
+  sqlConsulta.SQL.Add('(select sum(I.NOCIN2BASECOFINS) from NOTACOMPRAITEM I where I.NOCPA13ID = N.NOCPA13ID) as VL_BC_COFINS, ');
+  sqlConsulta.SQL.Add('N.*, F.FORNA2UF from NOTACOMPRA N ');
+  sqlConsulta.SQL.Add('Left Join FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
+  sqlConsulta.SQL.Add('where N.NOCPDEMISSAO >= ''' + FormatDateTime('mm/dd/yyyy',DataInicial) + ''' AND ');
+  sqlConsulta.SQL.Add('N.NOCPDEMISSAO <= ''' +FormatDateTime('mm/dd/yyyy',DataFinal) + ''' AND ');
+  sqlConsulta.SQL.Add('(N.NOCPCSTATUS = ''E'' or N.NOCPCSTATUS = ''C'') AND ');
+  sqlConsulta.SQL.Add('N.EMPRICOD = ' + QuotedStr(qryEmpresaEMPRICOD.AsString) + ' AND ');
+  sqlConsulta.SQL.Add('(N.CFOPA5COD = ' + QuotedStr('1253')  + ')');
+  sqlConsulta.Open;
+  while not sqlConsulta.Eof do
+  begin
+    with ACBrSPEDPisCofins1.Bloco_C.RegistroC500New do
+    begin
+      Msg := 'Gerando registro C001';
+      COD_PART := SQLLocate('SPED_0150','COD_FORN','COD_PART', sqlConsulta.FieldByName('FORNICOD').AsString);
+      COD_MOD := '06';
+      COD_SIT := StrToCodSit('00');
+      SER := Copy(sqlConsulta.FieldByName('NOCPA5SERIE').AsString,0,3);
+      NUM_DOC := sqlConsulta.FieldByName('NOCPA30NRO').AsInteger;
+      DT_DOC := sqlConsulta.FieldByName('NOCPDEMISSAO').AsDateTime;
+      DT_ENT := sqlConsulta.FieldByName('NOCPDRECEBIMENTO').AsDateTime;
+      VL_DOC := sqlConsulta.FieldByName('NOCPN3VLRBASCALICM').AsFloat;
+      VL_ICMS := sqlConsulta.FieldByName('VL_ICMS').Value;
+      VL_PIS := sqlConsulta.FieldByName('NOCPN3VLRPIS').AsFloat;
+      VL_COFINS := sqlConsulta.FieldByName('NOCPN3VLRCOFINS').AsFloat;
+      if sqlConsulta.FieldByName('NOFIA44CHAVEACESSO').AsString <> '' then
+        CHV_DOCe := sqlConsulta.FieldByName('NOFIA44CHAVEACESSO').AsString
+      else
+        CHV_DOCe := '';
+    end;
+
+
+    sqlConsulta2.Close;
+    sqlConsulta2.SQL.Clear;
+    sqlConsulta2.SQL.Add('select (NOCIN3VLREMBAL * NOCIN3QTDEMBAL) VALOR_TOTAL, NOCA3CSTCOFINS, ');
+    sqlConsulta2.SQL.Add('NOCA3CSTPIS, NOCIN2PERCCOFINS, NOCIN2PERCPIS, NOCIN2VLRCOFINS, NOCIN2VLRPIS, NOCIN2BASECOFINS, NOCIN2BASEPIS ');
+    sqlConsulta2.SQL.Add('from NOTACOMPRAITEM where NOCPA13ID = ' + sqlConsulta.FieldByName('NOCPA13ID').AsString);
+    sqlConsulta2.Open;
+    while not sqlConsulta2.Eof do
+    begin
+      with ACBrSPEDPisCofins1.Bloco_C.RegistroC501New do
+      begin
+        CST_PIS := StrToCstPis(sqlConsulta2.FieldByName('NOCA3CSTPIS').AsString);
+        VL_ITEM := sqlConsulta2.FieldByName('VALOR_TOTAL').AsFloat;
+        NAT_BC_CRED := StrToNatBcCred('04');
+        VL_BC_PIS := sqlConsulta2.FieldByName('NOCIN2BASEPIS').AsFloat;
+        VL_PIS := sqlConsulta2.FieldByName('NOCIN2VLRPIS').AsFloat;
+        ALIQ_PIS := sqlConsulta2.FieldByName('NOCIN2PERCPIS').AsFloat;
+        COD_CTA := sqlConsulta.FieldByName('PLCTA15COD').AsString
+      end;
+      with ACBrSPEDPisCofins1.Bloco_C.RegistroC505New do
+      begin
+        CST_COFINS := StrToCstCofins(sqlConsulta2.FieldByName('NOCA3CSTCOFINS').AsString);
+        VL_ITEM := sqlConsulta2.FieldByName('VALOR_TOTAL').AsFloat;
+        NAT_BC_CRED := StrToNatBcCred('04');
+        VL_BC_COFINS := sqlConsulta2.FieldByName('NOCIN2BASECOFINS').AsFloat;
+        VL_COFINS := sqlConsulta2.FieldByName('NOCIN2VLRCOFINS').AsFloat;
+        ALIQ_COFINS := sqlConsulta2.FieldByName('NOCIN2PERCCOFINS').AsFloat;
+        COD_CTA := sqlConsulta.FieldByName('PLCTA15COD').AsString
+      end;
+      sqlConsulta2.Next;
+    end;
+    sqlConsulta.Next;
+  end;
+end;
+
 procedure TDMSpedPisCofins.Gerar_Bloco_M;
 begin
   Gerar_Bloco_M_RegM001;
@@ -1279,6 +1367,7 @@ end;
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM100;
 var
   Aliq_Pis_Empresa : Real;
+  CodigoCredito : Integer;
 begin
   Msg := 'Gerando registro M100';
   Aliq_Pis_Empresa := StrToFloat(SQLLocate('EMPRESA','EMPRICOD','PERC_PIS',qryEmpresaEMPRICOD.AsString));
@@ -1287,11 +1376,11 @@ begin
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('Select sum(SP.VALOR_BASE_PIS) VALOR_BASE_PIS, ');
-  sqlConsulta.SQL.Add('sum(SP.VALOR_PIS) VALOR_PIS, SP.CST_PIS, SP.PERC_PIS ');
+  sqlConsulta.SQL.Add('sum(SP.VALOR_PIS) VALOR_PIS, SP.CST_PIS, SP.PERC_PIS, SP.COD_BASE_CALCULO ');
   sqlConsulta.SQL.Add('from SPED_PISCOFINS_ENTRADA SP ');
   sqlConsulta.SQL.Add('WHERE SP.data_emissao between ' + QuotedStr(FormatDateTime('mm/dd/yyyy',DataInicial)) + ' AND ');
   sqlConsulta.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy',DataFinal)));
-  sqlConsulta.SQL.Add('group by SP.CST_PIS, SP.PERC_PIS ');
+  sqlConsulta.SQL.Add('group by SP.CST_PIS, SP.PERC_PIS, SP.COD_BASE_CALCULO ');
   sqlConsulta.Open;
 
   sqlConsulta2.Close;
@@ -1313,16 +1402,20 @@ begin
   while not sqlConsulta.Eof do
   begin
     Posicao := Posicao + 1;
-    Mem100.Append;
     if sqlConsulta.FieldByName('PERC_PIS').AsFloat = Aliq_Pis_Empresa then
-      Mem100CodigoCredito.AsInteger := 101
+      CodigoCredito := 101
     else
-      Mem100CodigoCredito.AsInteger := 102;
+      CodigoCredito := 102;
+    if Mem100.Locate('CodigoCredito',CodigoCredito) then
+      Mem100.Edit
+    else
+      Mem100.Append;
+    Mem100CodigoCredito.AsInteger := CodigoCredito;
     Mem100IndCredito.AsString := '0';
-    Mem100VlrBasePis.AsFloat := sqlConsulta.FieldByName('VALOR_BASE_PIS').AsFloat;
+    Mem100VlrBasePis.AsFloat := Mem100VlrBasePis.AsFloat + sqlConsulta.FieldByName('VALOR_BASE_PIS').AsFloat;
     Mem100AliqPis.AsFloat := sqlConsulta.FieldByName('PERC_PIS').AsFloat;
-    Mem100VlrCredito.AsFloat := sqlConsulta.FieldByName('VALOR_PIS').AsFloat;
-    Mem100VlrCreditoDisponivel.AsFloat  := sqlConsulta.FieldByName('VALOR_PIS').AsFloat;
+    Mem100VlrCredito.AsFloat := Mem100VlrCredito.AsFloat + sqlConsulta.FieldByName('VALOR_PIS').AsFloat;
+    Mem100VlrCreditoDisponivel.AsFloat  := Mem100VlrCreditoDisponivel.AsFloat + sqlConsulta.FieldByName('VALOR_PIS').AsFloat;
     Mem100CST_PIS.AsString := sqlConsulta.FieldByName('CST_PIS').AsString;
     if Mem100VlrBasePis.AsFloat > 0 then
     begin
@@ -1357,16 +1450,25 @@ begin
       IND_DESC_CRED := StrToIndDescCred(Mem100IndUtilCredito.AsString);
       VL_CRED_DESC := Mem100VlrCreditoDescontado.AsFloat;
       SLD_CRED := Mem100SaldoCredito.AsFloat;
-      with RegistroM105.New do
+      sqlConsulta.Filtered := False;
+      sqlConsulta.Filter := 'PERC_PIS = ' + StringReplace(FormatFloat('0.00', Mem100AliqPis.AsFloat),',','.',[rfReplaceAll]);
+      sqlConsulta.Filtered := true;
+      sqlConsulta.First;
+      while not sqlConsulta.Eof do
       begin
-        NAT_BC_CRED := StrToNatBcCred('01');
-        CST_PIS := StrToCstPis(Mem100CST_PIS.AsString);
-        VL_BC_PIS_TOT := Mem100VlrBasePis.AsFloat;
-        VL_BC_PIS_NC :=  Mem100VlrBasePis.AsFloat;
-        VL_BC_PIS := Mem100VlrBasePis.AsFloat;
+        with RegistroM105.New do
+        begin
+          NAT_BC_CRED := StrToNatBcCred(sqlConsulta.FieldByName('COD_BASE_CALCULO').AsString);
+          CST_PIS := StrToCstPis(Mem100CST_PIS.AsString);
+          VL_BC_PIS_TOT := sqlConsulta.FieldByName('VALOR_BASE_PIS').AsFloat;
+          VL_BC_PIS_NC :=  sqlConsulta.FieldByName('VALOR_BASE_PIS').AsFloat;
+          VL_BC_PIS := sqlConsulta.FieldByName('VALOR_BASE_PIS').AsFloat;
+        end;
+        sqlConsulta.Next;
       end;
       Mem100.Next;
     end;
+    sqlConsulta.Filtered := False;
   end;
 
 end;
@@ -1482,6 +1584,7 @@ end;
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM500;
 var
   Aliq_Cofins_Empresa : Real;
+  CodigoCredito : Integer;
 begin
 
   Msg := 'Gerando registro M500';
@@ -1492,11 +1595,11 @@ begin
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('Select sum(SP.VALOR_BASE_COFINS) VALOR_BASE_COFINS, ');
-  sqlConsulta.SQL.Add('sum(SP.VALOR_COFINS) VALOR_COFINS, SP.CST_COFINS, SP.PERC_COFINS ');
+  sqlConsulta.SQL.Add('sum(SP.VALOR_COFINS) VALOR_COFINS, SP.CST_COFINS, SP.PERC_COFINS, SP.COD_BASE_CALCULO ');
   sqlConsulta.SQL.Add('from SPED_PISCOFINS_ENTRADA SP ');
   sqlConsulta.SQL.Add('WHERE SP.data_emissao between ' + QuotedStr(FormatDateTime('mm/dd/yyyy',DataInicial)) + ' AND ');
   sqlConsulta.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy',DataFinal)));
-  sqlConsulta.SQL.Add('group by SP.CST_COFINS, SP.PERC_COFINS ');
+  sqlConsulta.SQL.Add('group by SP.CST_COFINS, SP.PERC_COFINS, SP.COD_BASE_CALCULO ');
   sqlConsulta.Open;
 
   sqlConsulta2.Close;
@@ -1518,16 +1621,21 @@ begin
   while not sqlConsulta.Eof do
   begin
     Posicao := Posicao + 1;
-    Mem500.Append;
     if sqlConsulta.FieldByName('PERC_COFINS').AsFloat = Aliq_Cofins_Empresa then
-      Mem500CodigoCredito.AsInteger := 101
+      CodigoCredito := 101
     else
-      Mem500CodigoCredito.AsInteger := 102;
+      CodigoCredito := 102;
+
+    if Mem500.Locate('CodigoCredito',CodigoCredito) then
+      Mem500.Edit
+    else
+      Mem500.Append;
+    Mem500CodigoCredito.AsInteger := CodigoCredito;
     Mem500IndCredito.AsString := '0';
-    Mem500VlrBaseCofins.AsFloat := sqlConsulta.FieldByName('VALOR_BASE_COFINS').AsFloat;
+    Mem500VlrBaseCofins.AsFloat := Mem500VlrBaseCofins.AsFloat + sqlConsulta.FieldByName('VALOR_BASE_COFINS').AsFloat;
     Mem500AliqCofins.AsFloat := sqlConsulta.FieldByName('PERC_COFINS').AsFloat;
-    Mem500VlrCredito.AsFloat := sqlConsulta.FieldByName('VALOR_COFINS').AsFloat;
-    Mem500VlrCreditoDisponivel.AsFloat  := sqlConsulta.FieldByName('VALOR_COFINS').AsFloat;
+    Mem500VlrCredito.AsFloat := Mem500VlrCredito.AsFloat + sqlConsulta.FieldByName('VALOR_COFINS').AsFloat;
+    Mem500VlrCreditoDisponivel.AsFloat  := Mem500VlrCreditoDisponivel.AsFloat + sqlConsulta.FieldByName('VALOR_COFINS').AsFloat;
     Mem500CST_COFINS.AsString := sqlConsulta.FieldByName('CST_COFINS').AsString;
     if Mem500VlrBaseCofins.AsFloat > 0 then
     begin
@@ -1562,18 +1670,26 @@ begin
       IND_DESC_CRED := StrToIndDescCred(Mem500IndUtilCredito.AsString);
       VL_CRED_DESC := Mem500VlrCreditoDescontado.AsFloat;
       SLD_CRED := Mem500SaldoCredito.AsFloat;
-      with RegistroM505.New do
+      sqlConsulta.Filtered := False;
+      sqlConsulta.Filter := 'PERC_COFINS = ' + StringReplace(FormatFloat('0.00', Mem500AliqCofins.AsFloat),',','.',[rfReplaceAll]);
+      sqlConsulta.Filtered := true;
+      sqlConsulta.First;
+      while not sqlConsulta.Eof do
       begin
-        NAT_BC_CRED := StrToNatBcCred('01');
-        CST_COFINS := StrToCstCofins(Mem500CST_COFINS.AsString);
-        VL_BC_COFINS_TOT := Mem500VlrBaseCofins.AsFloat;
-        VL_BC_COFINS_NC :=  Mem500VlrBaseCofins.AsFloat;
-        VL_BC_COFINS := Mem500VlrBaseCofins.AsFloat;
+        with RegistroM505.New do
+        begin
+          NAT_BC_CRED := StrToNatBcCred(sqlConsulta.FieldByName('COD_BASE_CALCULO').AsString);
+          CST_COFINS := StrToCstCofins(Mem500CST_COFINS.AsString);
+          VL_BC_COFINS_TOT := sqlConsulta.FieldByName('VALOR_BASE_COFINS').AsFloat;
+          VL_BC_COFINS_NC :=  sqlConsulta.FieldByName('VALOR_BASE_COFINS').AsFloat;
+          VL_BC_COFINS := sqlConsulta.FieldByName('VALOR_BASE_COFINS').AsFloat;
+        end;
+        sqlConsulta.Next;
       end;
       Mem500.Next;
     end;
+    sqlConsulta.Filtered := False;
   end;
-
 end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM600;

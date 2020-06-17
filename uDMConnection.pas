@@ -81,7 +81,7 @@ end;
 
 procedure TDMConnection.DataModuleCreate(Sender: TObject);
 begin
-//  ReportMemoryLeaksOnShutdown := DebugHook <> 0;
+  ReportMemoryLeaksOnShutdown := DebugHook <> 0;
 end;
 
 function TDMConnection.desconectar: boolean;
