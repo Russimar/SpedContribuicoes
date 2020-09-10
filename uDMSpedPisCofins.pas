@@ -815,7 +815,7 @@ begin
               Chave := sqlConsulta.FieldByName('NOFIA44CHAVEACESSO').AsString
             else
               Chave := '';
-            if EntradaSaida = 'S' then
+            if EntradaSaida = '1' then
             begin
               IND_OPER := tpSaidaPrestacao;
               IND_EMIT := edEmissaoPropria;
@@ -825,25 +825,27 @@ begin
               IND_OPER := tpEntradaAquisicao;
               IND_EMIT := edTerceiros;
             end;
-            COD_PART := SQLLocate('SPED_150','CNPJ','COD_PART',SQLLocate('CLIENTE','CLIEA13ID','CLIEA14CGC',sqlConsulta.FieldByName('CLIEA13ID').AsString));
-            sqlConsulta.FieldByName('CLIEA13ID').AsString;
+            if sqlconsulta.FieldByName('CLIEA13ID').AsString = EmptyStr then
+              COD_PART := 'F'+ sqlConsulta.FieldByName('FORNICOD').AsString
+            else
+              COD_PART := SQLLocate('SPED_150','CNPJ','COD_PART',SQLLocate('CLIENTE','CLIEA13ID','CLIEA14CGC',sqlConsulta.FieldByName('CLIEA13ID').AsString));
             COD_MOD  := '55';
             if sqlConsulta.FieldByName('NOFICSTATUS').AsString = 'C' then
               COD_SIT  := sdCancelado
             else
               COD_SIT  := sdfRegular;
             SER := sqlConsulta.FieldByName('SERIA5COD').AsString;
-            NUM_DOC := sqlConsulta.FieldByName('NOFIICOD').AsString;
-            CHV_NFE := sqlConsulta.FieldByName('NOFITCHAVENFE').AsString;
+            NUM_DOC := sqlConsulta.FieldByName('NOFIINUMERO').AsString;
+            CHV_NFE := sqlConsulta.FieldByName('NOFIA44CHAVEACESSO').AsString;
             DT_DOC  := sqlConsulta.FieldByName('NOFIDEMIS').AsDateTime;
             VL_DOC  := sqlConsulta.FieldByName('NOFIN2VLRNOTA').AsFloat - sqlConsulta.FieldByName('NOFIN2VLRDESC').AsFloat;
             if sqlConsulta.FieldByName('CUPOCTIPOPADRAO').AsString = 'VISTA' then
               IND_PGTO := tpVista
             else
               IND_PGTO := tpPrazo;
-            VL_DESC := sqlConsulta.FieldByName('CUPON2DESC').AsFloat;
+            VL_DESC := sqlConsulta.FieldByName('NOFIN2VLRDESC').AsFloat;
             VL_ABAT_NT := 0;
-            VL_MERC := sqlConsulta.FieldByName('CUPON2TOTITENS').AsFloat;
+            VL_MERC := sqlConsulta.FieldByName('NOFIN2VLRPRODUTO').AsFloat;
             if sqlConsulta.FieldByName('NOFICFRETEPORCONTA').AsString = 'C' then
               IND_FRT := tfPorContaEmitente
             else
@@ -855,24 +857,18 @@ begin
             VL_SEG  := 0;
             VL_OUT_DA := 0;
 
-            {$Region 'Item Nota Fiscal'}
-            sqlConsulta2.Close;
-            sqlConsulta2.SQL.Clear;
-            sqlConsulta2.SQL.Add('select sum(CI.CPITN2DESC) CPITN2DESC, sum(CI.CPITN2BASEICMS) CPITN2BASEICMS, ');
-            sqlConsulta2.SQL.Add('sum(CI.CPITN2VLRICMS) CPITN2VLRICMS, sum(CI.BASE_ST_RETIDO) BASE_ST_RETIDO, ');
-            sqlConsulta2.SQL.Add('sum(CI.CPITN2VLRPIS) CPITN2VLRPIS, sum(CI.CPITN2VLRCOFINS) CPITN2VLRCOFINS, ');
-            sqlConsulta2.SQL.Add('sum(CI.VALOR_ST_RETIDO) VALOR_ST_RETIDO from CUPOMITEM CI ');
-            sqlConsulta2.SQL.Add(' where CI.CUPOA13ID = ' + QuotedStr(sqlConsulta.FieldByName('CUPOA13ID').AsString));
-            sqlConsulta2.Open;
-            VL_BC_ICMS    := sqlConsulta2.FieldByName('CUPON2BASEICMS').AsFloat;
-            VL_ICMS       := sqlConsulta2.FieldByName('CUPON2VLRICMS').AsFloat;
-            VL_BC_ICMS_ST := 0;
-            VL_ICMS_ST    := 0;
-            VL_IPI        := 0;
-            VL_PIS        := sqlConsulta2.FieldByName('CPITN2VLRPIS').AsFloat;
-            VL_COFINS     := sqlConsulta2.FieldByName('CPITN2VLRCOFINS').AsFloat;
+            VL_BC_ICMS    := sqlConsulta.FieldByName('NOFIN2BASCALCICMS').AsFloat;
+            VL_ICMS       := sqlConsulta.FieldByName('NOFIN2VLRICMS').AsFloat;
+            VL_BC_ICMS_ST := sqlConsulta.FieldByName('NOFIN2BASCALCSUBS').AsFloat;
+            VL_ICMS_ST    := sqlConsulta.FieldByName('NOFIN2VLRSUBS').AsFloat;
+            VL_IPI        := sqlConsulta.FieldByName('NOFIN2VLRIPI').AsFloat;
+            VL_PIS        := sqlConsulta.FieldByName('NOFIN3VLRPIS').AsFloat;
+            VL_COFINS     := sqlConsulta.FieldByName('NOFIN3VLRCOFINS').AsFloat;
             VL_PIS_ST     := 0;
             VL_COFINS_ST  := 0;
+
+            {$Region 'Item Nota Fiscal'}
+
             //Registro C110 não foi gerado   Complemento do Documento - Informação Complementar da Nota Fiscal
             //Registro C111 não foi gerado   Processo Referenciado
             //Registro C120 não foi gerado   Complemento do Documento - Operações de Importação
@@ -2183,7 +2179,7 @@ begin
   sqlConsulta.SQL.Add('select P.PRODICOD, P.PRODA60DESCR, P.PRODA60CODBAR, P.PRODIORIGEM, P.PRODISITTRIB, P.PRODA2CSTPIS, P.PRODA3CSTPISENTRADA, ');
   sqlConsulta.SQL.Add('N.NCMA30CODIGO, P.UNIDICOD, P.ICMSICOD, U.UNIDA5DESCR, P.PRODA2TIPOITEM ');
   sqlConsulta.SQL.Add('from NOTAFISCAL NF');
-  sqlConsulta.SQL.Add('inner join NOTAFISCALITEM NFI on NF.CUPOA13ID = NFI.CUPOA13ID ');
+  sqlConsulta.SQL.Add('inner join NOTAFISCALITEM NFI on NF.NOFIA13ID = NFI.NOFIA13ID ');
   sqlConsulta.SQL.Add('inner join PRODUTO P on P.PRODICOD = NFI.PRODICOD ');
   sqlConsulta.SQL.Add('inner join NCM N on P.NCMICOD = N.NCMICOD ');
   sqlConsulta.SQL.Add('inner join UNIDADE U on P.UNIDICOD = U.UNIDICOD ');
