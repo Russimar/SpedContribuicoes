@@ -1382,12 +1382,12 @@ begin
   sqlConsulta2.Close;
   sqlConsulta2.SQL.Clear;
   sqlConsulta2.SQL.Add(' select sum(SP.VALOR_PIS) VALOR_PIS, sum(SP.VALOR_BASE) VALOR_BASE, ');
-  sqlConsulta2.SQL.Add(' SP.CST_PIS, SP.ALIQ_PIS ');
+  sqlConsulta2.SQL.Add(' iif (SP.CST_PIS = '+ QuotedStr('01')+', '+ QuotedStr('01')+', '+ QuotedStr('32')+') as CST_PIS, SP.ALIQ_PIS ');
   sqlConsulta2.SQL.Add('from SPED_PISCOFINS_SAIDA SP ');
   sqlConsulta2.SQL.Add('WHERE SP.data_emissao between ' + QuotedStr(FormatDateTime('mm/dd/yyyy',DataInicial)) + ' AND ');
   sqlConsulta2.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy',DataFinal)));
   sqlconsulta2.SQL.Add(' AND SP.ALIQ_PIS > 0 ');
-  sqlConsulta2.SQL.Add('group by SP.CST_PIS, SP.ALIQ_PIS');
+  sqlConsulta2.SQL.Add('group by CST_PIS, SP.ALIQ_PIS');
 
   sqlConsulta2.Open;
   Posicao := 0;
@@ -1601,12 +1601,12 @@ begin
   sqlConsulta2.Close;
   sqlConsulta2.SQL.Clear;
   sqlConsulta2.SQL.Add(' select sum(SP.VALOR_COFINS) VALOR_COFINS, sum(SP.VALOR_BASE) VALOR_BASE, ');
-  sqlConsulta2.SQL.Add(' SP.CST_COFINS, SP.ALIQ_COFINS ');
+  sqlConsulta2.SQL.Add(' iif (SP.CST_COFINS =  '+ QuotedStr('01')+', '+ QuotedStr('01')+', '+ QuotedStr('32')+') as CST_COFINS, SP.ALIQ_COFINS ');
   sqlConsulta2.SQL.Add('from SPED_PISCOFINS_SAIDA SP ');
   sqlConsulta2.SQL.Add('WHERE SP.data_emissao between ' + QuotedStr(FormatDateTime('mm/dd/yyyy',DataInicial)) + ' AND ');
   sqlConsulta2.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy',DataFinal)));
   sqlconsulta2.SQL.Add(' AND SP.ALIQ_COFINS > 0 ');
-  sqlConsulta2.SQL.Add('group by SP.CST_COFINS, SP.ALIQ_COFINS');
+  sqlConsulta2.SQL.Add('group by CST_COFINS, SP.ALIQ_COFINS');
   sqlConsulta2.Open;
 
   Posicao := 0;
