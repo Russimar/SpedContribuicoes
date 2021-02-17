@@ -1095,8 +1095,13 @@ begin
               COD_MOD  := sqlSerieSERIA2TIPONOTA.AsString
             else
               COD_MOD  := '55';
-            COD_SIT  := sdfRegular;
+
             SER := sqlConsulta.FieldByName('NOCPA5SERIE').AsString;
+            if SER = '890' then
+              COD_SIT := sdRegimeEspecNEsp
+            else
+              COD_SIT := sdRegular;
+
             NUM_DOC := sqlConsulta.FieldByName('NOCPA30NRO').AsString;
             CHV_NFE := Chave;
             DT_DOC  := sqlConsulta.FieldByName('NOCPDEMISSAO').AsDateTime;
