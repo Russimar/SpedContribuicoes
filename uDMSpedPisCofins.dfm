@@ -7,6 +7,7 @@ object DMSpedPisCofins: TDMSpedPisCofins
   object ACBrSPEDPisCofins1: TACBrSPEDPisCofins
     Path = 'C:\Program Files (x86)\Embarcadero\Studio\20.0\bin\'
     Delimitador = '|'
+    ReplaceDelimitador = False
     TrimString = True
     CurMascara = '#0.00'
     Left = 475
@@ -490,17 +491,16 @@ object DMSpedPisCofins: TDMSpedPisCofins
     Connection = DMConnection.FDConnection
     SQL.Strings = (
       
-        'select CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, P.PRODN2' +
-        'ALIQPIS, P.PRODN2ALIQCOFINS,'
+        'select CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, CI.ALIQU' +
+        'OTA_PIS,'
+      '       CI.ALIQUOTA_COFINS, CI.CFOP,'
       
-        '       iif(P.PRODISITTRIB in ('#39'60'#39', '#39'500'#39'), '#39'5405'#39', '#39'5102'#39') CFOP' +
-        ','
+        '       sum(round(CI.TOTAL_ITEM * (coalesce(CI.ALIQUOTA_PIS, 0) /' +
+        ' 100), 2)) VALOR_PIS,'
       
-        '       sum(round(CI.TOTAL_ITEM * (coalesce(P.PRODN2ALIQPIS, 0) /' +
-        ' 100),2)) VALOR_PIS,'
-      
-        '       sum(round(CI.TOTAL_ITEM * (coalesce(P.PRODN2ALIQCOFINS, 0' +
-        ') / 100),2)) VALOR_COFINS, sum(CI.TOTAL_ITEM) TOTAL_ITEM,'
+        '       sum(round(CI.TOTAL_ITEM * (coalesce(CI.ALIQUOTA_COFINS, 0' +
+        ') / 100), 2)) VALOR_COFINS,'
+      '       sum(CI.TOTAL_ITEM) TOTAL_ITEM,'
       
         '       sum(coalesce(CI.CPITN2DESC, 0) + coalesce(CI.VLR_DESCONTO' +
         '_RATEIO, 0)) VALOR_DESCONTO'
@@ -508,9 +508,8 @@ object DMSpedPisCofins: TDMSpedPisCofins
       'inner join PRODUTO P on CI.PRODICOD = P.PRODICOD'
       'where CI.CUPOA13ID = :ID_CUPOM'
       
-        'group by CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, P.PROD' +
-        'N2ALIQPIS, P.PRODN2ALIQCOFINS, iif(P.PRODISITTRIB in ('#39'60'#39', '#39'500' +
-        #39'), '#39'5405'#39', '#39'5102'#39')  ')
+        'group by CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, CI.ALI' +
+        'QUOTA_PIS, CI.ALIQUOTA_COFINS, CI.CFOP')
     Left = 248
     Top = 136
     ParamData = <
@@ -546,20 +545,6 @@ object DMSpedPisCofins: TDMSpedPisCofins
       ReadOnly = True
       FixedChar = True
       Size = 2
-    end
-    object sqlC175PRODN2ALIQPIS: TFloatField
-      AutoGenerateValue = arDefault
-      FieldName = 'PRODN2ALIQPIS'
-      Origin = 'PRODN2ALIQPIS'
-      ProviderFlags = []
-      ReadOnly = True
-    end
-    object sqlC175PRODN2ALIQCOFINS: TFloatField
-      AutoGenerateValue = arDefault
-      FieldName = 'PRODN2ALIQCOFINS'
-      Origin = 'PRODN2ALIQCOFINS'
-      ProviderFlags = []
-      ReadOnly = True
     end
     object sqlC175VALOR_PIS: TFloatField
       AutoGenerateValue = arDefault
@@ -597,6 +582,14 @@ object DMSpedPisCofins: TDMSpedPisCofins
       ReadOnly = True
       FixedChar = True
       Size = 4
+    end
+    object sqlC175ALIQUOTA_PIS: TFloatField
+      FieldName = 'ALIQUOTA_PIS'
+      Origin = 'ALIQUOTA_PIS'
+    end
+    object sqlC175ALIQUOTA_COFINS: TFloatField
+      FieldName = 'ALIQUOTA_COFINS'
+      Origin = 'ALIQUOTA_COFINS'
     end
   end
   object sqlSerie: TFDQuery

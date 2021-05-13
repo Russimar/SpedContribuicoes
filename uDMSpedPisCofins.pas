@@ -103,8 +103,6 @@ type
     sqlC175CUPOA13ID: TStringField;
     sqlC175PRODA2CSTPIS: TStringField;
     sqlC175PRODA2CSTCOFINS: TStringField;
-    sqlC175PRODN2ALIQPIS: TFloatField;
-    sqlC175PRODN2ALIQCOFINS: TFloatField;
     sqlC175VALOR_PIS: TFloatField;
     sqlC175VALOR_COFINS: TFloatField;
     sqlC175TOTAL_ITEM: TFloatField;
@@ -144,6 +142,8 @@ type
     Mem800CST_Cofins: TStringField;
     Mem800Valor: TFloatField;
     Mem800PlanoConta: TStringField;
+    sqlC175ALIQUOTA_PIS: TFloatField;
+    sqlC175ALIQUOTA_COFINS: TFloatField;
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
   private
@@ -737,7 +737,7 @@ begin
                   VL_PIS := 0;
                 end;
 
-                ALIQ_PIS := sqlC175PRODN2ALIQPIS.AsFloat;
+                ALIQ_PIS := sqlC175ALIQUOTA_PIS.AsFloat;
                 CST_COFINS := StrToCstCofins(sqlC175PRODA2CSTCOFINS.AsString);
                 if sqlC175PRODA2CSTCOFINS.AsString <> '05' then
                 begin
@@ -750,7 +750,7 @@ begin
                   VL_COFINS := 0;
                 end;
 
-                ALIQ_COFINS := sqlC175PRODN2ALIQCOFINS.AsFloat;
+                ALIQ_COFINS := sqlC175ALIQUOTA_COFINS.AsFloat;
 
                 COD_CTA := SQLLocate('OPERACAOESTOQUE','OPESICOD','PLCTA15CODCRED',sqlConsulta.FieldByName('OPESICOD').AsString);
                 INFO_COMPL := '';
@@ -1923,6 +1923,67 @@ begin
       begin
         Showmessage('Falha ao Criar Tabela de Participantes (Empresa):'+#13+#10+E.Message+#13+#10+'Empresa: '+sqlConsulta.FieldByName('EMPRICOD').AsString);
         Exit;
+      end;
+    end;
+    Application.ProcessMessages;
+    sqlConsulta.Next;
+  end;
+  sqlConsulta.Close;
+
+    // Informa a FORNECEDOR caso existam notas emitidas para fornecedor
+  sqlConsulta.SQL.Clear;
+  sqlConsulta.SQL.Add('SELECT DISTINCT F.* FROM NOTAFISCAL N ');
+  sqlConsulta.SQL.Add('inner join FORNECEDOR F ON N.FORNICOD = F.FORNICOD ');
+  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy',
+    DataInicial) + ''') ');
+  sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy',
+    DataFinal) + ''') and ');
+  sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOFICSTATUS = ''E'')');
+  sqlConsulta.Open;
+  while not sqlConsulta.Eof do
+  begin
+    // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (EMPRESAS)
+    try
+      sqlParticipantes.Append;
+      sqlParticipantesCOD_PART.AsString := 'f' + sqlConsulta.FieldByName
+        ('FORNICOD').AsString;
+      sqlParticipantesNOME.AsString :=
+        Trim(sqlConsulta.FieldByName('FORNA60RAZAOSOC').AsString);
+      sqlParticipantesCOD_PAIS.AsString := '1058';
+      sqlParticipantesCNPJ.AsString := sqlConsulta.FieldByName
+        ('FORNA14CGC').AsString;
+      sqlParticipantesCPF.AsString := sqlConsulta.FieldByName
+        ('FORNA11CPF').AsString;
+      IE := Copy(sqlConsulta.FieldByName('FORNA20IE').AsString, 0, 14);
+      while pos('/', IE) > 0 do
+        delete(IE, pos('/', IE), 1);
+      while pos('.', IE) > 0 do
+        delete(IE, pos('.', IE), 1);
+      while pos('-', IE) > 0 do
+        delete(IE, pos('-', IE), 1);
+      if IE = 'ISENTO' then
+        IE := '';
+      sqlParticipantes.FieldByName('IE').AsString := Trim(IE);
+
+      sqlParticipantes.FieldByName('COD_MUN').AsString :=
+        sqlConsulta.FieldByName('FORNIMUNICODFED').AsString;
+      sqlParticipantes.FieldByName('ENDERECO').AsString :=
+        Trim(sqlConsulta.FieldByName('FORNA60END').AsString);
+      sqlParticipantes.FieldByName('END_NUM').AsString :=
+        Trim(sqlConsulta.FieldByName('FORNA5NROEND').AsString);
+      sqlParticipantes.FieldByName('BAIRRO').AsString :=
+        Trim(sqlConsulta.FieldByName('FORNA60BAI').AsString);
+      sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := '';
+      sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
+      sqlParticipantes.Post;
+    Except
+      on E: Exception do
+      begin
+        // Showmessage('Falha ao Criar Tabela de Participantes (Empresa):'+#13+#10+E.Message+#13+#10+'Empresa: '+sqlConsulta.FieldByName('EMPRICOD').AsString);
+//        ErroLog := 'Falha ao Criar Tabela de Participantes (Empresa):' + #13 +
+//          #10 + E.Message + #13 + #10 + 'Empresa: ' + sqlConsulta.FieldByName
+//          ('EMPRICOD').AsString;
+        exit;
       end;
     end;
     Application.ProcessMessages;
