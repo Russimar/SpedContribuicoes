@@ -66,6 +66,8 @@ implementation
 {$R *.dfm}
 
 procedure TfrmPrincipal.BitBtn1Click(Sender: TObject);
+var
+  Mes, Ano : String;
 begin
   pnlRegistro.Font.Color := clGreen;
 
@@ -91,7 +93,13 @@ begin
   with fDMSpedPisCofins do
   begin
     if CaminhoArquivo = EmptyStr then
-      CaminhoArquivo := UpperCase(ExtractFilePath(Application.ExeName)) + 'SPED\';
+    begin
+      Mes := FormatFloat('00', MonthOf(De.DateTime));
+      Ano := FormatFloat('0000', YearOf(De.DateTime));
+      CaminhoArquivo := UpperCase(ExtractFilePath(Application.ExeName)) + 'SPED\'+ Mes + '_'+ Ano + '\';
+      if not FileExists(CaminhoArquivo) then
+        CreateDir(CaminhoArquivo);
+    end;
     NomeArquivo := 'Sped_PisCofins_'+ fDMSpedPisCofins.qryEmpresaEMPRA60NOMEFANT.AsString +
                    '_' +FormatDateTime('ddmmyyyy',De.date)+
                    '_'+FormatDateTime('ddmmyyyy',Para.Date)+'.TXT';

@@ -148,9 +148,6 @@ object frmPrincipal: TfrmPrincipal
         Align = alTop
         BevelOuter = bvNone
         TabOrder = 0
-        ExplicitLeft = 1
-        ExplicitTop = 37
-        ExplicitWidth = 546
       end
       object BitBtn1: TBitBtn
         Left = 8
@@ -276,8 +273,6 @@ object frmPrincipal: TfrmPrincipal
     Height = 202
     Align = alClient
     TabOrder = 1
-    ExplicitTop = 161
-    ExplicitHeight = 151
     object GroupBox1: TGroupBox
       Left = 1
       Top = 1
@@ -286,7 +281,6 @@ object frmPrincipal: TfrmPrincipal
       Align = alClient
       Caption = 'Registro 0110'
       TabOrder = 0
-      ExplicitHeight = 184
       object Label7: TLabel
         Left = 357
         Top = 40
