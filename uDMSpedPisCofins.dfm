@@ -7,7 +7,6 @@ object DMSpedPisCofins: TDMSpedPisCofins
   object ACBrSPEDPisCofins1: TACBrSPEDPisCofins
     Path = 'C:\Program Files (x86)\Embarcadero\Studio\20.0\bin\'
     Delimitador = '|'
-    ReplaceDelimitador = False
     TrimString = True
     CurMascara = '#0.00'
     Left = 475

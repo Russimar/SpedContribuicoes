@@ -1421,15 +1421,14 @@ begin
     if Mem100VlrBasePis.AsFloat > 0 then
     begin
       if sqlConsulta2.Locate('CST_PIS','01',[loCaseInsensitive]) then
-        Mem100VlrCreditoDescontado.AsFloat := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat
+        Mem100VlrCreditoDescontado.AsFloat := sqlConsulta.FieldByName('VALOR_PIS').AsFloat
       else
         Mem100VlrCreditoDescontado.AsFloat := 0;
       Mem100SaldoCredito.AsFloat :=  Mem100VlrCredito.AsFloat - Mem100VlrCreditoDescontado.AsFloat;
       if Mem100SaldoCredito.AsFloat < 0 then
-      begin
         Mem100SaldoCredito.AsFloat := 0;
-        Mem100IndUtilCredito.AsString  := '0';
-      end
+      if Mem100VlrCreditoDescontado.AsFloat > 0 then
+        Mem100IndUtilCredito.AsString  := '0'
       else
         Mem100IndUtilCredito.AsString  := '1';
     end;
@@ -1484,7 +1483,22 @@ begin
       with ACBrSPEDPisCofins1.Bloco_M.RegistroM200New do
       begin
         VL_TOT_CONT_NC_PER := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat;
-        VL_TOT_CRED_DESC := sqlConsulta2.FieldByName('VALOR_PIS').AsFloat
+        VL_TOT_CRED_DESC := sqlConsulta.FieldByName('VALOR_PIS').AsFloat;
+        VL_TOT_CRED_DESC_ANT := 0;
+        VL_TOT_CONT_NC_DEV := VL_TOT_CONT_NC_PER - VL_TOT_CRED_DESC - VL_TOT_CRED_DESC_ANT;
+        if VL_TOT_CONT_NC_DEV < 0 then
+          VL_TOT_CONT_NC_DEV := 0;
+        VL_RET_NC := 0;
+        VL_OUT_DED_NC := 0;
+        VL_CONT_NC_REC := VL_TOT_CONT_NC_DEV - VL_RET_NC - VL_OUT_DED_NC;
+        VL_TOT_CONT_REC := VL_CONT_NC_REC;
+
+        with ACBrSPEDPisCofins1.Bloco_M.RegistroM205New do
+        begin
+          NUM_CAMPO := '08';
+          COD_REC := '691201';
+          VL_DEBITO := VL_TOT_CONT_REC;
+        end;
       end;
     end;
 
