@@ -726,32 +726,46 @@ begin
                 VL_OPR := sqlC175TOTAL_ITEM.AsFloat;
                 VL_DESC := sqlC175VALOR_DESCONTO.AsFloat;
                 CST_PIS := StrToCstPis(sqlC175PRODA2CSTPIS.AsString);
-                if sqlC175PRODA2CSTPIS.AsString <> '05' then
-                begin
-                  VL_BC_PIS := sqlC175TOTAL_ITEM.AsFloat;
-                  VL_PIS := sqlC175VALOR_PIS.AsFloat;
-                end
-                else
-                begin
-                  VL_BC_PIS := 0;
-                  VL_PIS := 0;
+                CST_COFINS := StrToCstCofins(sqlC175PRODA2CSTCOFINS.AsString);                                    
+
+                case AnsiIndexStr(sqlC175PRODA2CSTPIS.AsString,['01','02','05']) of
+                  0: 
+                  begin
+                    VL_BC_PIS     := sqlC175TOTAL_ITEM.AsFloat;
+                    VL_PIS        := sqlC175VALOR_PIS.AsFloat;                  
+                    ALIQ_PIS      := sqlC175ALIQUOTA_PIS.AsFloat;
+                    VL_BC_COFINS  := sqlC175TOTAL_ITEM.AsFloat;
+                    VL_COFINS     := sqlC175VALOR_COFINS.AsFloat;
+                    ALIQ_COFINS   := sqlC175ALIQUOTA_COFINS.AsFloat;                                        
+                  end; 
+                  1: 
+                  begin
+                    VL_BC_PIS     := sqlC175TOTAL_ITEM.AsFloat;
+                    VL_PIS        := sqlC175VALOR_PIS.AsFloat;                  
+                    ALIQ_PIS      := sqlC175ALIQUOTA_PIS.AsFloat;
+                    VL_BC_COFINS  := sqlC175TOTAL_ITEM.AsFloat;
+                    VL_COFINS     := sqlC175VALOR_COFINS.AsFloat;
+                    ALIQ_COFINS   := sqlC175ALIQUOTA_COFINS.AsFloat;                                        
+                  end;                   
+                  2: 
+                  begin
+                    VL_BC_PIS     := 0;
+                    VL_PIS        := 0;               
+                    ALIQ_PIS      := sqlC175ALIQUOTA_PIS.AsFloat;
+                    VL_BC_COFINS  := 0;
+                    VL_COFINS     := 0;
+                    ALIQ_COFINS   := sqlC175ALIQUOTA_COFINS.AsFloat;                                        
+                  end;                   
+                  else
+                  begin
+                    VL_BC_PIS     := 0;
+                    VL_PIS        := 0;
+                    ALIQ_PIS      := 0;
+                    VL_BC_COFINS  := 0;
+                    VL_COFINS     := 0;
+                    ALIQ_COFINS   := 0;
+                  end;                     
                 end;
-
-                ALIQ_PIS := sqlC175ALIQUOTA_PIS.AsFloat;
-                CST_COFINS := StrToCstCofins(sqlC175PRODA2CSTCOFINS.AsString);
-                if sqlC175PRODA2CSTCOFINS.AsString <> '05' then
-                begin
-                  VL_BC_COFINS := sqlC175TOTAL_ITEM.AsFloat;
-                  VL_COFINS := sqlC175VALOR_COFINS.AsFloat;
-                end
-                else
-                begin
-                  VL_BC_COFINS := 0;
-                  VL_COFINS := 0;
-                end;
-
-                ALIQ_COFINS := sqlC175ALIQUOTA_COFINS.AsFloat;
-
                 COD_CTA := SQLLocate('OPERACAOESTOQUE','OPESICOD','PLCTA15CODCRED',sqlConsulta.FieldByName('OPESICOD').AsString);
                 INFO_COMPL := '';
               end;
@@ -881,7 +895,9 @@ begin
             sqlConsulta2.SQL.Add('From NotaFiscalItem I ');
             sqlConsulta2.SQL.Add('LEFT JOIN PRODUTO P ON P.PRODICOD = I.PRODICOD ');
             sqlConsulta2.SQL.Add('LEFT JOIN UNIDADE U ON U.UNIDICOD = P.UNIDICOD ');
-            sqlConsulta2.SQL.Add('Where NOFIA13ID=''' + sqlConsulta.FieldByName('NOFIA13ID').AsString + '''');
+            sqlConsulta2.SQL.Add('LEFT JOIN NOTAFISCAL NF ON NF.NOFIA13ID = I.NOFIA13ID ');
+            sqlConsulta2.SQL.Add('Where I.NOFIA13ID=''' + sqlConsulta.FieldByName('NOFIA13ID').AsString + '''');
+            sqlConsulta2.SQL.Add('and NF.NOFICSTATUS = ''E''');
             sqlConsulta2.Open;
             ordem := 1;
             while not sqlConsulta2.Eof do
@@ -1006,7 +1022,7 @@ begin
           sqlConsulta.Next;
         end; {$EndRegion}
 
-        {$Region 'Nota Compra}
+        {$Region 'Nota Compra'}
         Msg := 'Gerando Nota de Compra';
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;

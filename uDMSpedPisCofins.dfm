@@ -7,6 +7,7 @@ object DMSpedPisCofins: TDMSpedPisCofins
   object ACBrSPEDPisCofins1: TACBrSPEDPisCofins
     Path = 'C:\Program Files (x86)\Embarcadero\Studio\20.0\bin\'
     Delimitador = '|'
+    ReplaceDelimitador = False
     TrimString = True
     CurMascara = '#0.00'
     Left = 475
@@ -490,9 +491,9 @@ object DMSpedPisCofins: TDMSpedPisCofins
     Connection = DMConnection.FDConnection
     SQL.Strings = (
       
-        'select CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, CI.ALIQU' +
-        'OTA_PIS,'
-      '       CI.ALIQUOTA_COFINS, CI.CFOP,'
+        'select CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, p.prodn2' +
+        'aliqpis ALIQUOTA_PIS,'
+      '       p.prodn2aliqcofins ALIQUOTA_COFINS, CI.CFOP,'
       
         '       sum(round(CI.TOTAL_ITEM * (coalesce(CI.ALIQUOTA_PIS, 0) /' +
         ' 100), 2)) VALOR_PIS,'
@@ -507,8 +508,8 @@ object DMSpedPisCofins: TDMSpedPisCofins
       'inner join PRODUTO P on CI.PRODICOD = P.PRODICOD'
       'where CI.CUPOA13ID = :ID_CUPOM'
       
-        'group by CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, CI.ALI' +
-        'QUOTA_PIS, CI.ALIQUOTA_COFINS, CI.CFOP')
+        'group by CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, ALIQUO' +
+        'TA_PIS, ALIQUOTA_COFINS, CI.CFOP')
     Left = 248
     Top = 136
     ParamData = <
