@@ -442,19 +442,24 @@ object DMSpedPisCofins: TDMSpedPisCofins
       'as (select CF.OPESICOD as COD_OPE, OE.OPESA60DESCR'
       '    from CUPOM CF'
       '    left join OPERACAOESTOQUE OE on CF.OPESICOD = OE.OPESICOD'
-      '    where CF.CUPODEMIS between :DATAINICIAL and :DATAFINAL'
+      '    where CF.CUPODEMIS between :DATAINICIAL and :DATAFINAL and'
+      '          CF.EMPRICOD = :EMPRESA'
       '    union all'
       '    select NF.OPESICOD as COD_OPE, OE.OPESA60DESCR'
       '    from NOTAFISCAL NF'
       '    left join OPERACAOESTOQUE OE on NF.OPESICOD = OE.OPESICOD'
-      '    where NF.NOFIDEMIS between :DATAINICIAL and :DATAFINAL'
+      '    where NF.NOFIDEMIS between :DATAINICIAL and :DATAFINAL and'
+      '          NF.EMPRICOD = :EMPRESA'
       '    union all'
       '    select NC.OPESICOD as OPE, OE.OPESA60DESCR'
       '    from NOTACOMPRA NC'
       '    left join OPERACAOESTOQUE OE on NC.OPESICOD = OE.OPESICOD'
-      '    where NC.NOCPDEMISSAO between :DATAINICIAL and :DATAFINAL)'
+      
+        '    where NC.NOCPDEMISSAO between :DATAINICIAL and :DATAFINAL an' +
+        'd'
+      '          NC.EMPRICOD = :EMPRESA)'
       'select distinct(COD_OPE), OPESA60DESCR'
-      'from OPERACAO_SPED ')
+      'from OPERACAO_SPED   ')
     Left = 304
     Top = 15
     ParamData = <
@@ -463,11 +468,17 @@ object DMSpedPisCofins: TDMSpedPisCofins
         DataType = ftDate
         FDDataType = dtDate
         ParamType = ptInput
+        Value = Null
       end
       item
         Name = 'DATAFINAL'
         DataType = ftDate
         FDDataType = dtDate
+        ParamType = ptInput
+      end
+      item
+        Name = 'EMPRESA'
+        DataType = ftInteger
         ParamType = ptInput
       end>
     object sqlOperacaoCOD_OPE: TIntegerField
@@ -491,9 +502,9 @@ object DMSpedPisCofins: TDMSpedPisCofins
     Connection = DMConnection.FDConnection
     SQL.Strings = (
       
-        'select CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, p.prodn2' +
-        'aliqpis ALIQUOTA_PIS,'
-      '       p.prodn2aliqcofins ALIQUOTA_COFINS, CI.CFOP,'
+        'select CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS,coalesce(' +
+        'p.prodn2aliqpis,0) ALIQUOTA_PIS,'
+      '       coalesce(p.prodn2aliqcofins,0) ALIQUOTA_COFINS, CI.CFOP,'
       
         '       sum(round(CI.TOTAL_ITEM * (coalesce(CI.ALIQUOTA_PIS, 0) /' +
         ' 100), 2)) VALOR_PIS,'

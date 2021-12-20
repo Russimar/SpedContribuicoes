@@ -173,6 +173,7 @@ type
     NroDocumento: String;
     EntradaSaida: String;
     Chave: String;
+    FListaEmpressa: TStringList;
     procedure Gravar_0150;
     procedure Gravar_0190;
     procedure Gravar_0200;
@@ -180,6 +181,7 @@ type
     procedure SetMsg(const Value: String);
     procedure setPosicao(const Value: Integer);
     procedure setMax(const Value: Integer);
+    procedure SetListaEmpressa(const Value: TStringList);
   public
     { Public declarations }
     fDMConnection: TDMConnection;
@@ -229,6 +231,7 @@ type
     property Posicao: Integer read FPosicao write setPosicao;
     property Max: Integer read FMax write setMax;
     property evMax: tEvMaxProgress read FevMax write FevMax;
+    property ListaEmpressa : TStringList read FListaEmpressa write SetListaEmpressa;
   end;
 
 var
@@ -251,12 +254,14 @@ begin
   fDMConnection.conectar;
   qryEmpresa.Close;
   qryEmpresa.open;
+  ListaEmpressa := TStringList.Create;
 end;
 
 procedure TDMSpedPisCofins.DataModuleDestroy(Sender: TObject);
 begin
   if Assigned(fDMConnection) then
     FreeAndNil(fDMConnection);
+  ListaEmpressa.Free;
 end;
 
 procedure TDMSpedPisCofins.Gerar_Blcoo_M_RegM810;
@@ -274,10 +279,6 @@ begin
   // Gerar_Bloco_0_Reg0111;  //nao usado
   // Gerar_Bloco_0_Reg0120;  //nao usado
   Gerar_Bloco_0_Reg0140;
-  Gerar_Bloco_0_Reg0150;
-  Gerar_Bloco_0_Reg0190;
-  Gerar_Bloco_0_Reg0200;
-  Gerar_Bloco_0_Reg0400;
   Gerar_Bloco_0_Reg0500;
 end;
 
@@ -297,7 +298,7 @@ begin
   begin
     LinhasBuffer := 1000;
   end;
-
+  qryEmpresa.First;
   with ACBrSPEDPisCofins1.Bloco_0.Registro0000New do
   begin
     Msg := 'Gerando registro 0000';
@@ -421,24 +422,35 @@ begin
 end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0140;
+var
+  i : integer;
 begin
+  fDMConnection.FDConnection.ExecSQL('delete from SPED_0150');
   Msg := 'Gerando registro 0140';
-  with ACBrSPEDPisCofins1.Bloco_0 do
+  for I := 0 to Pred(FListaEmpressa.Count) do
   begin
-    with Registro0001New do
+    with ACBrSPEDPisCofins1.Bloco_0 do
     begin
-      with Registro0140New do
+      with Registro0001New do
       begin
-        COD_EST := qryEmpresaEMPRICOD.AsString;
-        NOME := qryEmpresaEMPRA60RAZAOSOC.AsString;
-        CNPJ := qryEmpresaEMPRA14CGC.AsString;
-        UF := qryEmpresaEMPRA2UF.AsString;
-        IE := qryEmpresaEMPRA20IE.AsString;
-        COD_MUN := qryEmpresaEMPRIMUNICODFED.AsInteger;
-        IM := '';
-        SUFRAMA := '';
+        with Registro0140New do
+        begin
+          qryEmpresa.Locate('EMPRICOD',ListaEmpressa[i],[loCaseInsensitive]);
+          COD_EST := qryEmpresaEMPRICOD.AsString;
+          NOME := qryEmpresaEMPRA60RAZAOSOC.AsString;
+          CNPJ := qryEmpresaEMPRA14CGC.AsString;
+          UF := qryEmpresaEMPRA2UF.AsString;
+          IE := qryEmpresaEMPRA20IE.AsString;
+          COD_MUN := qryEmpresaEMPRIMUNICODFED.AsInteger;
+          IM := '';
+          SUFRAMA := '';
+        end;
       end;
     end;
+    Gerar_Bloco_0_Reg0150;
+    Gerar_Bloco_0_Reg0190;
+    Gerar_Bloco_0_Reg0200;
+    Gerar_Bloco_0_Reg0400;
   end;
 end;
 
@@ -570,6 +582,7 @@ begin
   sqlOperacao.Close;
   sqlOperacao.ParamByName('datainicial').AsDate := DataInicial;
   sqlOperacao.ParamByName('datafinal').AsDate := DataFinal;
+  sqlOperacao.ParamByName('empresa').AsInteger := qryEmpresaEMPRICOD.AsInteger;
   sqlOperacao.open;
   Posicao := 0;
   sqlOperacao.FetchAll;
@@ -647,10 +660,16 @@ begin
 end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_C;
+var
+  i : integer;
 begin
   Gerar_Bloco_C_Regc001;
-  Gerar_Bloco_C_RegC100;
-  Gerar_Bloco_C_RegC500;
+  for I := 0 to Pred(ListaEmpressa.Count) do
+  begin
+    qryEmpresa.Locate('EMPRICOD', ListaEmpressa[i], [loCaseInsensitive]);
+    Gerar_Bloco_C_RegC100;
+    Gerar_Bloco_C_RegC500;
+  end;
 end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_C_Regc001;
@@ -670,11 +689,12 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_C_RegC100;
 var
-  ordem: Integer;
+  ordem : Integer;
   OpEntraSai: String;
   CST: String;
   ValorBase: Real;
   Quantidade: Real;
+  Cod_Situacao : String;
 begin
   Msg := 'Gerando registro C100';
   with ACBrSPEDPisCofins1.Bloco_C do
@@ -692,22 +712,20 @@ begin
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;
         sqlConsulta.SQL.Add('Select N.* from CUPOM N ');
-        sqlConsulta.SQL.Add('Where (N.CUPODEMIS>=''' + FormatDateTime('mm/dd/yyyy',
-          DataInicial) + ''') ');
-        sqlConsulta.SQL.Add('and (N.CUPODEMIS<=''' + FormatDateTime('mm/dd/yyyy',
-          DataFinal) + ''') AND ');
-        sqlConsulta.SQL.Add('N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString +
-          ' AND (N.CUPOCSTATUS = ''A'' or N.CUPOCSTATUS = ''C'') ');
-        sqlConsulta.SQL.Add('AND N.CHAVEACESSO is not null AND COALESCE(N.STNFE,' +
-          QuotedStr('') + ') <> ' + QuotedStr(''));
+        sqlConsulta.SQL.Add('Where (N.CUPODEMIS>=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
+        sqlConsulta.SQL.Add('and (N.CUPODEMIS<=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') AND ');
+        sqlConsulta.SQL.Add('N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString + ' AND (N.CUPOCSTATUS = ''A'' or N.CUPOCSTATUS = ''C'') ');
+        sqlConsulta.SQL.Add('AND N.CHAVEACESSO is not null AND COALESCE(N.STNFE,' + QuotedStr('') + ') <> ' + QuotedStr(''));
+        sqlConsulta.SQL.Add('order by N.CUPODEMIS');
         sqlConsulta.open;
         Posicao := 0;
         sqlConsulta.FetchAll;
         Max := sqlConsulta.RecordCount;
+        sqlConsulta.DisableControls;
         while not sqlConsulta.Eof do
         begin
           Posicao := Posicao + 1;
-          Msg := 'Gerando cupom nº: ' + sqlConsulta.FieldByName('CUPOINRO').AsString;
+          Msg := 'Gerando cupom do dia: ' + sqlConsulta.FieldByName('CUPODEMIS').AsString;
           with RegistroC100New do
           begin
             IND_OPER := tpSaidaPrestacao;
@@ -841,24 +859,20 @@ begin
           Application.ProcessMessages;
           sqlConsulta.Next;
         end;
+        sqlConsulta.EnableControls;
 {$ENDREGION }
 {$REGION 'Nota Fiscal'}
         Msg := 'Abrindo Notas Fiscais';
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;
-        sqlConsulta.SQL.Add
-          ('Select N.*, C.CLIEA60CIDRES, F.FORNA60CID, E.EMPRA60CID from NOTAFISCAL N ');
+        sqlConsulta.SQL.Add('Select N.*, C.CLIEA60CIDRES, F.FORNA60CID, E.EMPRA60CID from NOTAFISCAL N ');
         sqlConsulta.SQL.Add('lEFT JOIN CLIENTE C ON C.CLIEA13ID = N.CLIEA13ID  ');
         sqlConsulta.SQL.Add('LEFT JOIN FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
         sqlConsulta.SQL.Add('LEFT JOIN EMPRESA E ON E.EMPRICOD = N.EMPRICOD ');
-        sqlConsulta.SQL.Add('where (N.NOFIDEMIS>=''' + FormatDateTime('mm/dd/yyyy',
-          DataInicial) + ''') and ');
-        sqlConsulta.SQL.Add('(N.NOFIDEMIS <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal)
-          + ''') AND ');
-        sqlConsulta.SQL.Add('N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString +
-          ' AND N.NOFICSTATUS <> ''A'' and ');
-        sqlConsulta.SQL.Add('COALESCE(N.NOFIA5CODRETORNO, ' + QuotedStr('') + ') <> ' +
-          QuotedStr(''));
+        sqlConsulta.SQL.Add('where (N.NOFIDEMIS>=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') and ');
+        sqlConsulta.SQL.Add('(N.NOFIDEMIS <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') AND ');
+        sqlConsulta.SQL.Add('N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString + ' AND N.NOFICSTATUS <> ''A'' and ');
+        sqlConsulta.SQL.Add('COALESCE(N.NOFIA5CODRETORNO, ' + QuotedStr('') + ') <> ' + QuotedStr(''));
         sqlConsulta.open;
         Posicao := 0;
         sqlConsulta.FetchAll;
@@ -881,8 +895,7 @@ begin
             if sqlConsulta.FieldByName('NOFA1ENTRADASAIDA').AsString = '' then
             // // 02 IND_OPER Indicador do tipo de operação: C 001* - S - 0- Entrada;  1- Saída
             begin
-              if SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'OPESCENTRADASAIDA',
-                sqlConsulta.FieldByName('OPESICOD').AsString) = 'E' Then
+              if SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'OPESCENTRADASAIDA', sqlConsulta.FieldByName('OPESICOD').AsString) = 'E' Then
               begin
                 EntradaSaida := '0';
               end
@@ -916,20 +929,22 @@ begin
             if sqlConsulta.FieldByName('CLIEA13ID').AsString = EmptyStr then
               COD_PART := 'F' + sqlConsulta.FieldByName('FORNICOD').AsString
             else
-              COD_PART := SQLLocate('SPED_150', 'CNPJ', 'COD_PART',
-                SQLLocate('CLIENTE', 'CLIEA13ID', 'CLIEA14CGC',
-                sqlConsulta.FieldByName('CLIEA13ID').AsString));
+              COD_PART := SQLLocate('SPED_0150', 'CNPJ', 'COD_PART', SQLLocate('CLIENTE', 'CLIEA13ID', 'CLIEA14CGC', sqlConsulta.FieldByName('CLIEA13ID').AsString));
             COD_MOD := '55';
+
+            Cod_Situacao := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'COD_SIT_DOCUMENTO', sqlConsulta.FieldByName('OPESICOD').AsString);
+            if Cod_Situacao = EmptyStr then
+              Cod_Situacao := '00';
             if sqlConsulta.FieldByName('NOFICSTATUS').AsString = 'C' then
               COD_SIT := sdCancelado
             else
-              COD_SIT := sdfRegular;
+              COD_SIT := StrToCodSit(Cod_Situacao);
+
             SER := sqlConsulta.FieldByName('SERIA5COD').AsString;
             NUM_DOC := sqlConsulta.FieldByName('NOFIINUMERO').AsString;
             CHV_NFE := sqlConsulta.FieldByName('NOFIA44CHAVEACESSO').AsString;
             DT_DOC := sqlConsulta.FieldByName('NOFIDEMIS').AsDateTime;
-            VL_DOC := sqlConsulta.FieldByName('NOFIN2VLRNOTA').AsFloat -
-              sqlConsulta.FieldByName('NOFIN2VLRDESC').AsFloat;
+            VL_DOC := sqlConsulta.FieldByName('NOFIN2VLRNOTA').AsFloat - sqlConsulta.FieldByName('NOFIN2VLRDESC').AsFloat;
             if sqlConsulta.FieldByName('CUPOCTIPOPADRAO').AsString = 'VISTA' then
               IND_PGTO := tpVista
             else
@@ -1171,15 +1186,15 @@ begin
           ('where I.NOCPA13ID = N.NOCPA13ID) as VL_FRETE, N.*, F.FORNA2UF ');
         sqlConsulta.SQL.Add('from NOTACOMPRA N ');
         sqlConsulta.SQL.Add('left join FORNECEDOR F on F.FORNICOD = N.FORNICOD ');
-        sqlConsulta.SQL.Add('where N.NOCPDEMISSAO >= ''' + FormatDateTime('mm/dd/yyyy',
+        sqlConsulta.SQL.Add('where N.NOCPDRECEBIMENTO >= ''' + FormatDateTime('mm/dd/yyyy',
           DataInicial) + ''' AND ');
-        sqlConsulta.SQL.Add('N.NOCPDEMISSAO <= ''' + FormatDateTime('mm/dd/yyyy',
+        sqlConsulta.SQL.Add('N.NOCPDRECEBIMENTO <= ''' + FormatDateTime('mm/dd/yyyy',
           DataFinal) + ''' AND ');
         sqlConsulta.SQL.Add('(N.NOCPCSTATUS = ''E'' or N.NOCPCSTATUS = ''C'') AND ');
         sqlConsulta.SQL.Add('N.EMPRICOD = ' + QuotedStr(qryEmpresaEMPRICOD.AsString)
           + ' AND ');
         sqlConsulta.SQL.Add('N.CFOPA5COD <> 1253');
-        sqlConsulta.SQL.Add('order by N.NOCPDEMISSAO');
+        sqlConsulta.SQL.Add('order by N.NOCPDRECEBIMENTO');
         sqlConsulta.open;
         Posicao := 0;
         sqlConsulta.FetchAll;
@@ -1267,20 +1282,15 @@ begin
 {$REGION 'Item Nota Compra'}
             sqlConsulta2.Close;
             sqlConsulta2.SQL.Clear;
-            sqlConsulta2.SQL.Add
-              ('Select P.PRODA60DESCR, P.PRODA2CSTIPI, P.PRODA2CSTPIS, ');
+            sqlConsulta2.SQL.Add('Select P.PRODA60DESCR, P.PRODA2CSTIPI, P.PRODA2CSTPIS, ');
             sqlConsulta2.SQL.Add('P.PRODN2ALIQCOFINS, P.PRODIORIGEM, P.PRODISITTRIB, ');
-            sqlConsulta2.SQL.Add
-              ('P.PRODN2ALIQPIS, P.PRODN2ALIQCOFINS, P.PRODA2CSTCOFINS, ');
-            sqlConsulta2.SQL.Add
-              ('P.PRODA2TIPOITEM , P.UNIDICOD, P.PRODA3CSTIPIENTRADA, ');
-            sqlConsulta2.SQL.Add
-              ('P.PRODA3CSTPISENTRADA, P.PRODA3CSTCOFINSENTRADA, U.UNIDA5DESCR, ');
+            sqlConsulta2.SQL.Add('P.PRODN2ALIQPIS, P.PRODN2ALIQCOFINS, P.PRODA2CSTCOFINS, ');
+            sqlConsulta2.SQL.Add('P.PRODA2TIPOITEM , P.UNIDICOD, P.PRODA3CSTIPIENTRADA, ');
+            sqlConsulta2.SQL.Add('P.PRODA3CSTPISENTRADA, P.PRODA3CSTCOFINSENTRADA, U.UNIDA5DESCR, ');
             sqlConsulta2.SQL.Add('I.* From NOTACOMPRAITEM I ');
             sqlConsulta2.SQL.Add('LEFT JOIN PRODUTO P ON P.PRODICOD = I.PRODICOD ');
             sqlConsulta2.SQL.Add('LEFT JOIN UNIDADE U ON U.UNIDICOD = I.UNIDICOD ');
-            sqlConsulta2.SQL.Add('Where NOCPA13ID = ''' + sqlConsulta.FieldByName
-              ('NOCPA13ID').AsString + '''');
+            sqlConsulta2.SQL.Add('Where NOCPA13ID = ''' + sqlConsulta.FieldByName('NOCPA13ID').AsString + '''');
             sqlConsulta2.open;
             ordem := 1;
             while not sqlConsulta2.Eof do
@@ -1445,9 +1455,9 @@ begin
     ('(select sum(I.NOCIN2BASECOFINS) from NOTACOMPRAITEM I where I.NOCPA13ID = N.NOCPA13ID) as VL_BC_COFINS, ');
   sqlConsulta.SQL.Add('N.*, F.FORNA2UF from NOTACOMPRA N ');
   sqlConsulta.SQL.Add('Left Join FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
-  sqlConsulta.SQL.Add('where N.NOCPDEMISSAO >= ''' + FormatDateTime('mm/dd/yyyy',
+  sqlConsulta.SQL.Add('where N.NOCPDRECEBIMENTO >= ''' + FormatDateTime('mm/dd/yyyy',
     DataInicial) + ''' AND ');
-  sqlConsulta.SQL.Add('N.NOCPDEMISSAO <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
+  sqlConsulta.SQL.Add('N.NOCPDRECEBIMENTO <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
     ''' AND ');
   sqlConsulta.SQL.Add('(N.NOCPCSTATUS = ''E'' or N.NOCPCSTATUS = ''C'') AND ');
   sqlConsulta.SQL.Add('N.EMPRICOD = ' + QuotedStr(qryEmpresaEMPRICOD.AsString) + ' AND ');
@@ -1576,6 +1586,7 @@ begin
   sqlConsulta.FetchAll;
   Max := sqlConsulta.RecordCount;
 
+  mem100.Close;
   Mem100.CreateDataSet;
   while not sqlConsulta.Eof do
   begin
@@ -1732,6 +1743,7 @@ begin
   sqlConsulta.SQL.Add(QuotedStr('08') + ', ' + QuotedStr('09') + ')');
   sqlConsulta.SQL.Add('group by SP.CST_PIS, SP.NATUREZA_RECEITA, SP.CONTA');
   sqlConsulta.open;
+  Mem400.Close;
   Mem400.CreateDataSet;
   sqlConsulta.First;
 
@@ -1827,7 +1839,7 @@ begin
   Posicao := 0;
   sqlConsulta.FetchAll;
   Max := sqlConsulta.RecordCount;
-
+  Mem500.Close;
   Mem500.CreateDataSet;
   while not sqlConsulta.Eof do
   begin
@@ -1970,6 +1982,7 @@ begin
   sqlConsulta.SQL.Add(QuotedStr('08') + ', ' + QuotedStr('09') + ')');
   sqlConsulta.SQL.Add('group by SP.CST_COFINS, SP.NATUREZA_RECEITA, SP.CONTA');
   sqlConsulta.open;
+  Mem800.Close;
   Mem800.CreateDataSet;
   sqlConsulta.First;
   Posicao := 0;
@@ -2032,7 +2045,6 @@ var
   Achou, IE: String;
 begin
   // Zera tabela SPED_0150
-  fDMConnection.FDConnection.ExecSQL('delete from SPED_0150');
   sqlParticipantes.open;
 
   // Incluir participantes das Notas Fiscais no SPED_0150
@@ -2128,12 +2140,9 @@ begin
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('SELECT DISTINCT E.* FROM NOTAFISCAL N ');
   sqlConsulta.SQL.Add('inner join EMPRESA E ON N.EMPRICODDEST = E.EMPRICOD ');
-  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy',
-    DataInicial) + ''') ');
-  sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
-    ''') and ');
-  sqlConsulta.SQL.Add('(N.EMPRICODDEST IS NOT NULL) and (N.Empricod = ' +
-    qryEmpresaEMPRICOD.AsString + ') and (N.NOFICSTATUS = ''E'')');
+  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
+  sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') and ');
+  sqlConsulta.SQL.Add('(N.EMPRICODDEST IS NOT NULL) and (N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ') and (N.NOFICSTATUS = ''E'')');
   sqlConsulta.open;
   while not sqlConsulta.Eof do
   begin
@@ -2158,16 +2167,11 @@ begin
         IE := '';
       sqlParticipantes.FieldByName('IE').AsString := Trim(IE);
 
-      sqlParticipantes.FieldByName('COD_MUN').AsString :=
-        sqlConsulta.FieldByName('EMPRIMUNICODFED').AsString;
-      sqlParticipantes.FieldByName('ENDERECO').AsString :=
-        Trim(sqlConsulta.FieldByName('EMPRA60END').AsString);
-      sqlParticipantes.FieldByName('END_NUM').AsString :=
-        Trim(sqlConsulta.FieldByName('EMPRIENDNRO').AsString);
-      sqlParticipantes.FieldByName('BAIRRO').AsString :=
-        Trim(sqlConsulta.FieldByName('EMPRA60BAI').AsString);
-      sqlParticipantes.FieldByName('COD_SUFRAMA').AsString :=
-        Trim(sqlConsulta.FieldByName('EMPRA9SUFRAMA').AsString);
+      sqlParticipantes.FieldByName('COD_MUN').AsString := sqlConsulta.FieldByName('EMPRIMUNICODFED').AsString;
+      sqlParticipantes.FieldByName('ENDERECO').AsString := Trim(sqlConsulta.FieldByName('EMPRA60END').AsString);
+      sqlParticipantes.FieldByName('END_NUM').AsString := Trim(sqlConsulta.FieldByName('EMPRIENDNRO').AsString);
+      sqlParticipantes.FieldByName('BAIRRO').AsString := Trim(sqlConsulta.FieldByName('EMPRA60BAI').AsString);
+      sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := Trim(sqlConsulta.FieldByName('EMPRA9SUFRAMA').AsString);
       sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
       sqlParticipantes.Post;
     Except
@@ -2188,11 +2192,10 @@ begin
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('SELECT DISTINCT F.* FROM NOTAFISCAL N ');
   sqlConsulta.SQL.Add('inner join FORNECEDOR F ON N.FORNICOD = F.FORNICOD ');
-  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy',
-    DataInicial) + ''') ');
-  sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
-    ''') and ');
-  sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOFICSTATUS = ''E'')');
+  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
+  sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') and ');
+  sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOFICSTATUS = ''E'') and');
+  sqlConsulta.SQL.Add('(N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ')');
   sqlConsulta.open;
   while not sqlConsulta.Eof do
   begin
@@ -2246,9 +2249,9 @@ begin
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('SELECT DISTINCT F.* FROM NOTACOMPRA N ');
   sqlConsulta.SQL.Add('Left Join FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
-  sqlConsulta.SQL.Add('Where N.NOCPDEMISSAO >= ''' + FormatDateTime('mm/dd/yyyy',
+  sqlConsulta.SQL.Add('Where N.NOCPDRECEBIMENTO >= ''' + FormatDateTime('mm/dd/yyyy',
     DataInicial) + ''' and ');
-  sqlConsulta.SQL.Add('N.NOCPDEMISSAO <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
+  sqlConsulta.SQL.Add('N.NOCPDRECEBIMENTO <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
     ''' AND ');
   sqlConsulta.SQL.Add('N.EMPRICODDESTCOMPRA = ' + qryEmpresaEMPRICOD.AsString + ' AND ');
   sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOCPCSTATUS = ''E'') ');
@@ -2478,27 +2481,27 @@ begin
   sqlConsulta.SQL.Add('inner join CUPOMITEM CI on C.CUPOA13ID = CI.CUPOA13ID ');
   sqlConsulta.SQL.Add('inner join PRODUTO P on P.PRODICOD = CI.PRODICOD ');
   sqlConsulta.SQL.Add('inner join UNIDADE U on P.UNIDICOD = U.UNIDICOD ');
-  sqlConsulta.SQL.Add('where C.CUPODEMIS between ''' + FormatDateTime('dd.mm.yyyy',
-    DataInicial) + '''');
-  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + '''');
+  sqlConsulta.SQL.Add('where C.CUPODEMIS between ''' + FormatDateTime('dd.mm.yyyy', DataInicial) + '''');
+  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''' AND ');
+  sqlConsulta.SQL.Add('C.EMPRICOD = ' + qryEmpresaEMPRICOD.AsString);
   sqlConsulta.SQL.Add(' union all ');
   sqlConsulta.SQL.Add('select U.UNIDA5DESCR, U.UNIDA15DESCR');
   sqlConsulta.SQL.Add('from NOTAFISCAL NF');
   sqlConsulta.SQL.Add('inner join NOTAFISCALITEM NFI on NF.CUPOA13ID = NFI.CUPOA13ID ');
   sqlConsulta.SQL.Add('inner join PRODUTO P on P.PRODICOD = NFI.PRODICOD ');
   sqlConsulta.SQL.Add('inner join UNIDADE U on P.UNIDICOD = U.UNIDICOD ');
-  sqlConsulta.SQL.Add('where NF.NOFIDEMIS between ''' + FormatDateTime('dd.mm.yyyy',
-    DataInicial) + '''');
-  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + '''');
+  sqlConsulta.SQL.Add('where NF.NOFIDEMIS between ''' + FormatDateTime('dd.mm.yyyy', DataInicial) + '''');
+  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''' AND ');
+  sqlConsulta.SQL.Add('NF.EMPRICOD = ' + qryEmpresaEMPRICOD.AsString);
   sqlConsulta.SQL.Add(' union all ');
   sqlConsulta.SQL.Add('select U.UNIDA5DESCR, U.UNIDA15DESCR');
   sqlConsulta.SQL.Add('from NOTACOMPRA NC ');
   sqlConsulta.SQL.Add('inner join NOTACOMPRAITEM NCI on NC.NOCPA13ID = NCI.NOCPA13ID ');
   sqlConsulta.SQL.Add('inner join PRODUTO P on P.PRODICOD = NCI.PRODICOD ');
   sqlConsulta.SQL.Add('inner join UNIDADE U on P.UNIDICOD = U.UNIDICOD ');
-  sqlConsulta.SQL.Add('where NC.NOCPDEMISSAO between ''' + FormatDateTime('dd.mm.yyyy',
-    DataInicial) + ''' ');
-  sqlConsulta.SQL.Add('AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''')');
+  sqlConsulta.SQL.Add('where NC.NOCPDRECEBIMENTO between ''' + FormatDateTime('dd.mm.yyyy', DataInicial) + ''' ');
+  sqlConsulta.SQL.Add('AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''' AND');
+  sqlConsulta.SQL.Add('NC.EMPRICOD = ' + qryEmpresaEMPRICOD.AsString + ')');
   sqlConsulta.SQL.Add('select distinct(UNIDA5DESCR), UNIDA15DESCR from UNIDADE_SPED ');
   sqlConsulta.open;
 
@@ -2531,48 +2534,40 @@ begin
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('with PRODUTO_SPED ');
-  sqlConsulta.SQL.Add
-    ('as (select P.PRODICOD, P.PRODA60DESCR, P.PRODA60CODBAR, P.PRODIORIGEM, P.PRODISITTRIB, P.PRODA2CSTPIS, P.PRODA3CSTPISENTRADA, ');
-  sqlConsulta.SQL.Add
-    ('N.NCMA30CODIGO, P.UNIDICOD, P.ICMSICOD, U.UNIDA5DESCR, P.PRODA2TIPOITEM ');
+  sqlConsulta.SQL.Add('as (select P.PRODICOD, P.PRODA60DESCR, P.PRODA60CODBAR, P.PRODIORIGEM, P.PRODISITTRIB, P.PRODA2CSTPIS, P.PRODA3CSTPISENTRADA, ');
+  sqlConsulta.SQL.Add('N.NCMA30CODIGO, P.UNIDICOD, P.ICMSICOD, U.UNIDA5DESCR, P.PRODA2TIPOITEM ');
   sqlConsulta.SQL.Add('from CUPOM C ');
   sqlConsulta.SQL.Add('inner join CUPOMITEM CI on C.CUPOA13ID = CI.CUPOA13ID ');
   sqlConsulta.SQL.Add('inner join PRODUTO P on P.PRODICOD = CI.PRODICOD ');
   sqlConsulta.SQL.Add('inner join NCM N on P.NCMICOD = N.NCMICOD ');
   sqlConsulta.SQL.Add('inner join UNIDADE U on P.UNIDICOD = U.UNIDICOD ');
-  sqlConsulta.SQL.Add('where C.CUPODEMIS between ''' + FormatDateTime('dd.mm.yyyy',
-    DataInicial) + '''');
-  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + '''');
+  sqlConsulta.SQL.Add('where C.CUPODEMIS between ''' + FormatDateTime('dd.mm.yyyy', DataInicial) + '''');
+  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''' AND ');
+  sqlConsulta.SQL.Add('C.EMPRICOD = ' + qryEmpresaEMPRICOD.AsString);
   sqlConsulta.SQL.Add(' union all ');
-  sqlConsulta.SQL.Add
-    ('select P.PRODICOD, P.PRODA60DESCR, P.PRODA60CODBAR, P.PRODIORIGEM, P.PRODISITTRIB, P.PRODA2CSTPIS, P.PRODA3CSTPISENTRADA, ');
-  sqlConsulta.SQL.Add
-    ('N.NCMA30CODIGO, P.UNIDICOD, P.ICMSICOD, U.UNIDA5DESCR, P.PRODA2TIPOITEM ');
+  sqlConsulta.SQL.Add('select P.PRODICOD, P.PRODA60DESCR, P.PRODA60CODBAR, P.PRODIORIGEM, P.PRODISITTRIB, P.PRODA2CSTPIS, P.PRODA3CSTPISENTRADA, ');
+  sqlConsulta.SQL.Add('N.NCMA30CODIGO, P.UNIDICOD, P.ICMSICOD, U.UNIDA5DESCR, P.PRODA2TIPOITEM ');
   sqlConsulta.SQL.Add('from NOTAFISCAL NF');
   sqlConsulta.SQL.Add('inner join NOTAFISCALITEM NFI on NF.NOFIA13ID = NFI.NOFIA13ID ');
   sqlConsulta.SQL.Add('inner join PRODUTO P on P.PRODICOD = NFI.PRODICOD ');
   sqlConsulta.SQL.Add('inner join NCM N on P.NCMICOD = N.NCMICOD ');
   sqlConsulta.SQL.Add('inner join UNIDADE U on P.UNIDICOD = U.UNIDICOD ');
-  sqlConsulta.SQL.Add('where NF.NOFIDEMIS between ''' + FormatDateTime('dd.mm.yyyy',
-    DataInicial) + '''');
-  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + '''');
+  sqlConsulta.SQL.Add('where NF.NOFIDEMIS between ''' + FormatDateTime('dd.mm.yyyy', DataInicial) + '''');
+  sqlConsulta.SQL.Add(' AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''' AND ');
+  sqlConsulta.SQL.Add('NF.EMPRICOD = ' + qryEmpresaEMPRICOD.AsString);
   sqlConsulta.SQL.Add(' union all ');
-  sqlConsulta.SQL.Add
-    ('select P.PRODICOD, P.PRODA60DESCR, P.PRODA60CODBAR, P.PRODIORIGEM, P.PRODISITTRIB, P.PRODA2CSTPIS, P.PRODA3CSTPISENTRADA, ');
-  sqlConsulta.SQL.Add
-    ('N.NCMA30CODIGO, P.UNIDICOD, P.ICMSICOD, U.UNIDA5DESCR, P.PRODA2TIPOITEM ');
+  sqlConsulta.SQL.Add('select P.PRODICOD, P.PRODA60DESCR, P.PRODA60CODBAR, P.PRODIORIGEM, P.PRODISITTRIB, P.PRODA2CSTPIS, P.PRODA3CSTPISENTRADA, ');
+  sqlConsulta.SQL.Add('N.NCMA30CODIGO, P.UNIDICOD, P.ICMSICOD, U.UNIDA5DESCR, P.PRODA2TIPOITEM ');
   sqlConsulta.SQL.Add('from NOTACOMPRA NC ');
   sqlConsulta.SQL.Add('inner join NOTACOMPRAITEM NCI on NC.NOCPA13ID = NCI.NOCPA13ID ');
   sqlConsulta.SQL.Add('inner join PRODUTO P on P.PRODICOD = NCI.PRODICOD ');
   sqlConsulta.SQL.Add('inner join NCM N on P.NCMICOD = N.NCMICOD ');
   sqlConsulta.SQL.Add('inner join UNIDADE U on P.UNIDICOD = U.UNIDICOD ');
-  sqlConsulta.SQL.Add('where NC.NOCPDEMISSAO between ''' + FormatDateTime('dd.mm.yyyy',
-    DataInicial) + ''' ');
-  sqlConsulta.SQL.Add('AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''')');
-  sqlConsulta.SQL.Add
-    ('select distinct(PRODICOD), PRODA60DESCR, PRODA60CODBAR, PRODIORIGEM, PRODISITTRIB,PRODA2CSTPIS, ');
-  sqlConsulta.SQL.Add
-    ('PRODA3CSTPISENTRADA, NCMA30CODIGO, UNIDICOD, ICMSICOD, UNIDA5DESCR, PRODA2TIPOITEM ');
+  sqlConsulta.SQL.Add('where NC.NOCPDRECEBIMENTO between ''' + FormatDateTime('dd.mm.yyyy', DataInicial) + ''' ');
+  sqlConsulta.SQL.Add('AND ''' + FormatDateTime('dd.mm.yyyy', DataFinal) + ''' AND ');
+  sqlConsulta.SQL.Add('NC.EMPRICOD = ' + qryEmpresaEMPRICOD.AsString + ')');
+  sqlConsulta.SQL.Add('select distinct(PRODICOD), PRODA60DESCR, PRODA60CODBAR, PRODIORIGEM, PRODISITTRIB,PRODA2CSTPIS, ');
+  sqlConsulta.SQL.Add('PRODA3CSTPISENTRADA, NCMA30CODIGO, UNIDICOD, ICMSICOD, UNIDA5DESCR, PRODA2TIPOITEM ');
   sqlConsulta.SQL.Add('from PRODUTO_SPED order by PRODICOD');
   sqlConsulta.open;
   sqlConsulta.FetchAll;
@@ -2604,6 +2599,11 @@ end;
 procedure TDMSpedPisCofins.Gravar_C100;
 begin
 
+end;
+
+procedure TDMSpedPisCofins.SetListaEmpressa(const Value: TStringList);
+begin
+  FListaEmpressa := Value;
 end;
 
 procedure TDMSpedPisCofins.setMax(const Value: Integer);

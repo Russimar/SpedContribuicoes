@@ -21,7 +21,7 @@ object frmPrincipal: TfrmPrincipal
     Left = 0
     Top = 0
     Width = 1121
-    Height = 174
+    Height = 233
     Align = alTop
     Color = clMedGray
     ParentBackground = False
@@ -40,33 +40,33 @@ object frmPrincipal: TfrmPrincipal
       Height = 13
       Caption = 'Data Final:'
     end
-    object Label3: TLabel
-      Left = 42
-      Top = 59
-      Width = 45
-      Height = 13
-      Caption = 'Empresa:'
-    end
     object Label4: TLabel
       Left = 35
-      Top = 86
+      Top = 150
       Width = 52
       Height = 13
       Caption = 'Finalidade:'
     end
     object Label5: TLabel
       Left = 8
-      Top = 112
+      Top = 176
       Width = 79
       Height = 13
       Caption = 'Ind. Movimento:'
     end
     object Label6: TLabel
       Left = 46
-      Top = 139
+      Top = 203
       Width = 41
       Height = 13
       Caption = 'Arquivo:'
+    end
+    object Label3: TLabel
+      Left = 45
+      Top = 124
+      Width = 45
+      Height = 13
+      Caption = 'Empresa:'
     end
     object De: TDateTimePicker
       Left = 96
@@ -86,23 +86,13 @@ object frmPrincipal: TfrmPrincipal
       Time = 0.572525659721577500
       TabOrder = 1
     end
-    object ComboEmpresa: TDBLookupComboBox
-      Left = 96
-      Top = 51
-      Width = 518
-      Height = 21
-      KeyField = 'EMPRICOD'
-      ListField = 'EMPRA60NOMEFANT'
-      ListSource = DMSpedPisCofins.dsEmpresa
-      TabOrder = 2
-    end
     object ComboFinalidade: TComboBox
       Left = 96
-      Top = 79
+      Top = 143
       Width = 518
       Height = 21
       ItemIndex = 0
-      TabOrder = 3
+      TabOrder = 2
       Text = 'Remessa do arquivo original'
       Items.Strings = (
         'Remessa do arquivo original'
@@ -110,11 +100,11 @@ object frmPrincipal: TfrmPrincipal
     end
     object ComboMovimento: TComboBox
       Left = 96
-      Top = 107
+      Top = 171
       Width = 518
       Height = 21
       ItemIndex = 0
-      TabOrder = 4
+      TabOrder = 3
       Text = 'Com Movimento'
       Items.Strings = (
         'Com Movimento'
@@ -122,24 +112,24 @@ object frmPrincipal: TfrmPrincipal
     end
     object edtCaminho: TEdit
       Left = 96
-      Top = 134
-      Width = 493
+      Top = 198
+      Width = 495
       Height = 21
       TabStop = False
       Color = clMedGray
       ReadOnly = True
-      TabOrder = 5
+      TabOrder = 4
     end
     object pnlProgress: TPanel
       Left = 648
       Top = 1
       Width = 472
-      Height = 172
+      Height = 231
       Align = alRight
       BevelOuter = bvNone
       Color = clMedGray
       ParentBackground = False
-      TabOrder = 6
+      TabOrder = 5
       object pnlGauge: TPanel
         Left = 0
         Top = 0
@@ -218,7 +208,7 @@ object frmPrincipal: TfrmPrincipal
     end
     object btnDiretorio: TBitBtn
       Left = 590
-      Top = 134
+      Top = 198
       Width = 24
       Height = 21
       Glyph.Data = {
@@ -262,22 +252,60 @@ object frmPrincipal: TfrmPrincipal
         FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
         FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
         FFFFFFFFFFFFFFFFFFFF}
-      TabOrder = 7
+      TabOrder = 6
       OnClick = btnDiretorioClick
+    end
+    object gridEmpresa: TSMDBGrid
+      Left = 96
+      Top = 51
+      Width = 518
+      Height = 86
+      DataSource = DMSpedPisCofins.dsEmpresa
+      Options = [dgIndicator, dgColumnResize, dgTabs, dgConfirmDelete, dgCancelOnExit, dgMultiSelect, dgTitleClick, dgTitleHotTrack]
+      TabOrder = 7
+      TitleFont.Charset = DEFAULT_CHARSET
+      TitleFont.Color = clWindowText
+      TitleFont.Height = -11
+      TitleFont.Name = 'Tahoma'
+      TitleFont.Style = []
+      Flat = False
+      BandsFont.Charset = DEFAULT_CHARSET
+      BandsFont.Color = clWindowText
+      BandsFont.Height = -11
+      BandsFont.Name = 'Tahoma'
+      BandsFont.Style = []
+      Groupings = <>
+      GridStyle.Style = gsNormal
+      GridStyle.OddColor = clWindow
+      GridStyle.EvenColor = clWindow
+      TitleHeight.PixelCount = 24
+      FooterColor = clBtnFace
+      ExOptions = [eoBooleanAsCheckBox, eoCheckBoxSelect, eoENTERlikeTAB, eoKeepSelection, eoStandardPopup, eoBLOBEditor, eoTitleWordWrap, eoFilterAutoApply]
+      RegistryKey = 'Software\Scalabium'
+      RegistrySection = 'SMDBGrid'
+      WidthOfIndicator = 27
+      DefaultRowHeight = 16
+      ScrollBars = ssHorizontal
+      Columns = <
+        item
+          Expanded = False
+          FieldName = 'EMPRA60NOMEFANT'
+          Visible = True
+        end>
     end
   end
   object Panel2: TPanel
     Left = 0
-    Top = 174
+    Top = 233
     Width = 1121
-    Height = 202
+    Height = 143
     Align = alClient
     TabOrder = 1
     object GroupBox1: TGroupBox
       Left = 1
       Top = 1
       Width = 1119
-      Height = 200
+      Height = 141
       Align = alClient
       Caption = 'Registro 0110'
       TabOrder = 0

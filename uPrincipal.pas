@@ -3,10 +3,30 @@ unit uPrincipal;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.DBCtrls, Vcl.ComCtrls,
-  Vcl.ExtCtrls, Vcl.Buttons, ACBrBase, ACBrSpedPisCofins, uDMSpedPisCofins,
-  Data.DB, Vcl.Grids, Vcl.DBGrids, Vcl.Samples.Gauges, System.DateUtils, FileCtrl;
+  Winapi.Windows,
+  Winapi.Messages,
+  System.SysUtils,
+  System.Variants,
+  System.Classes,
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Dialogs,
+  Vcl.StdCtrls,
+  Vcl.DBCtrls,
+  Vcl.ComCtrls,
+  Vcl.ExtCtrls,
+  Vcl.Buttons,
+  ACBrBase,
+  ACBrSpedPisCofins,
+  uDMSpedPisCofins,
+  Data.DB,
+  Vcl.Grids,
+  Vcl.DBGrids,
+  Vcl.Samples.Gauges,
+  System.DateUtils,
+  FileCtrl,
+  SMDBGrid;
 
 type
   TfrmPrincipal = class(TForm)
@@ -17,10 +37,8 @@ type
     Para: TDateTimePicker;
     Label1: TLabel;
     Label2: TLabel;
-    Label3: TLabel;
     Label4: TLabel;
     Label5: TLabel;
-    ComboEmpresa: TDBLookupComboBox;
     Label6: TLabel;
     ComboFinalidade: TComboBox;
     ComboMovimento: TComboBox;
@@ -41,21 +59,23 @@ type
     Gauge1: TGauge;
     pnlRegistro: TPanel;
     btnDiretorio: TBitBtn;
+    Label3: TLabel;
+    gridEmpresa: TSMDBGrid;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure BitBtn1Click(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnDiretorioClick(Sender: TObject);
   private
-      Arquivo : TextFile;
-      TotalRegistros : integer;
+    Arquivo: TextFile;
+    TotalRegistros: Integer;
     { Private declarations }
   public
     { Public declarations }
-    fDMSpedPisCofins : TDMSpedPisCofins;
-    procedure evMensagem(Msg : String);
-    procedure evProgressao(Posicao : Integer);
-    procedure evMaxProgress(Max : Integer);
+    fDMSpedPisCofins: TDMSpedPisCofins;
+    procedure evMensagem(Msg: String);
+    procedure evProgressao(Posicao: Integer);
+    procedure evMaxProgress(Max: Integer);
   end;
 
 var
@@ -67,16 +87,18 @@ implementation
 
 procedure TfrmPrincipal.BitBtn1Click(Sender: TObject);
 var
-  Mes, Ano : String;
+  Mes, Ano: String;
+  TemEmpresa : Boolean;
 begin
   pnlRegistro.Font.Color := clGreen;
+  TemEmpresa := False;
 
-  TotalRegistros  := 0;
+  TotalRegistros := 0;
   if (De.Date = null) or (Para.Date = null) then
-    begin
-      ShowMessage('Informe as datas antes de tentar executar a rotina!');
-      Exit;
-    end;
+  begin
+    ShowMessage('Informe as datas antes de tentar executar a rotina!');
+    Exit;
+  end;
 
   if (De.Date > Para.Date) then
   begin
@@ -84,7 +106,18 @@ begin
     Exit;
   end;
 
-  if (ComboEmpresa.KeyValue = 0) or (ComboEmpresa.KeyValue = null) then
+  with fDMSpedPisCofins do
+  begin
+    qryEmpresa.First;
+    while not qryEmpresa.Eof do
+    begin
+      if gridEmpresa.SelectedRows.CurrentRowSelected then
+        TemEmpresa := True;
+      qryEmpresa.Next;
+    end;
+  end;
+
+  if not TemEmpresa then
   begin
     ShowMessage('Informe a Empresa antes de tentar executar a rotina!');
     Exit;
@@ -96,13 +129,14 @@ begin
     begin
       Mes := FormatFloat('00', MonthOf(De.DateTime));
       Ano := FormatFloat('0000', YearOf(De.DateTime));
-      CaminhoArquivo := UpperCase(ExtractFilePath(Application.ExeName)) + 'SPED\'+ Mes + '_'+ Ano + '\';
+      CaminhoArquivo := UpperCase(ExtractFilePath(Application.ExeName)) + 'SPED\' + Mes +
+        '_' + Ano + '\';
       if not FileExists(CaminhoArquivo) then
         CreateDir(CaminhoArquivo);
     end;
-    NomeArquivo := 'Sped_PisCofins_'+ fDMSpedPisCofins.qryEmpresaEMPRA60NOMEFANT.AsString +
-                   '_' +FormatDateTime('ddmmyyyy',De.date)+
-                   '_'+FormatDateTime('ddmmyyyy',Para.Date)+'.TXT';
+    NomeArquivo := 'Sped_PisCofins_' + fDMSpedPisCofins.qryEmpresaEMPRA60NOMEFANT.AsString
+      + '_' + FormatDateTime('ddmmyyyy', De.Date) + '_' + FormatDateTime('ddmmyyyy',
+      Para.Date) + '.TXT';
     edtCaminho.Text := CaminhoArquivo + NomeArquivo;
     edtCaminho.Update;
   end;
@@ -115,28 +149,47 @@ begin
   end;
 
   case comboIndIncidencia.ItemIndex of
-   0 : fDMSpedPisCofins.Ind_Incidencia := tpEscrOpIncNaoCumulativo;
-   1 : fDMSpedPisCofins.Ind_Incidencia := tpEscrOpIncCumulativo;
-   2 : fDMSpedPisCofins.Ind_Incidencia := tpEscrOpIncAmbos;
+    0:
+      fDMSpedPisCofins.Ind_Incidencia := tpEscrOpIncNaoCumulativo;
+    1:
+      fDMSpedPisCofins.Ind_Incidencia := tpEscrOpIncCumulativo;
+    2:
+      fDMSpedPisCofins.Ind_Incidencia := tpEscrOpIncAmbos;
   end;
 
   case comboIndMetodo.ItemIndex of
-   0 : fDMSpedPisCofins.Ind_Metodo := tpMetodoApropriacaoDireta;
-   1 : fDMSpedPisCofins.Ind_Metodo := tpMetodoDeRateioProporcional;
+    0:
+      fDMSpedPisCofins.Ind_Metodo := tpMetodoApropriacaoDireta;
+    1:
+      fDMSpedPisCofins.Ind_Metodo := tpMetodoDeRateioProporcional;
   end;
 
   case ComboIndContribuicao.ItemIndex of
-   0 : fDMSpedPisCofins.Ind_Tipo := tpIndTipoConExclAliqBasica;
-   1 : fDMSpedPisCofins.Ind_Tipo := tpIndTipoAliqEspecificas;
+    0:
+      fDMSpedPisCofins.Ind_Tipo := tpIndTipoConExclAliqBasica;
+    1:
+      fDMSpedPisCofins.Ind_Tipo := tpIndTipoAliqEspecificas;
   end;
 
   case comboIndCriterio.ItemIndex of
-   0 : fDMSpedPisCofins.Ind_Credito := tpRegimeCaixa;
-   1 : fDMSpedPisCofins.Ind_Credito := tpRegimeCompetEscritConsolidada;
-   2 : fDMSpedPisCofins.Ind_Credito := tpRegimeCompetEscritDetalhada;
+    0:
+      fDMSpedPisCofins.Ind_Credito := tpRegimeCaixa;
+    1:
+      fDMSpedPisCofins.Ind_Credito := tpRegimeCompetEscritConsolidada;
+    2:
+      fDMSpedPisCofins.Ind_Credito := tpRegimeCompetEscritDetalhada;
   end;
+
   with fDMSpedPisCofins do
   begin
+    qryEmpresa.First;
+    while not qryEmpresa.Eof do
+    begin
+      if gridEmpresa.SelectedRows.CurrentRowSelected then
+        ListaEmpressa.Add(qryEmpresaEMPRICOD.AsString);
+      qryEmpresa.Next;
+    end;
+
     Gerar_Bloco_0;
     Gerar_Bloco_A;
     Gerar_Bloco_C;
@@ -152,10 +205,11 @@ procedure TfrmPrincipal.btnDiretorioClick(Sender: TObject);
 const
   SELDIRHELP = 1000;
 var
-  Dir : String;
+  Dir: String;
 begin
   Dir := fDMSpedPisCofins.CaminhoArquivo;
-  if FileCtrl.SelectDirectory(Dir,[sdAllowCreate, sdPerformCreate, sdPrompt], SELDIRHELP) then
+  if FileCtrl.SelectDirectory(Dir, [sdAllowCreate, sdPerformCreate, sdPrompt], SELDIRHELP)
+  then
   begin
     fDMSpedPisCofins.CaminhoArquivo := Dir + '\';
     edtCaminho.Text := fDMSpedPisCofins.CaminhoArquivo;
@@ -193,14 +247,21 @@ begin
   fDMSpedPisCofins.evMsg := evMensagem;
   fDMSpedPisCofins.evProgresso := evProgressao;
   fDMSpedPisCofins.evMax := evMaxProgress;
-  para.Date := StartOfTheMonth(date()) - 1;
-  de.Date := StartOfTheMonth(para.date);
+  Para.Date := StartOfTheMonth(Date()) - 1;
+  De.Date := StartOfTheMonth(Para.Date);
 end;
 
 procedure TfrmPrincipal.FormShow(Sender: TObject);
 begin
-  if fDMSpedPisCofins.qryEmpresa.RecordCount = 1 then
-    ComboEmpresa.KeyValue := fDMSpedPisCofins.qryEmpresaEMPRICOD.AsInteger;
+  with fDMSpedPisCofins do
+  begin
+    while not qryEmpresa.Eof do
+    begin
+      gridEmpresa.SelectedRows.CurrentRowSelected := True;
+      qryEmpresa.Next;
+    end;
+    qryEmpresa.First;
+  end;
 end;
 
 end.
