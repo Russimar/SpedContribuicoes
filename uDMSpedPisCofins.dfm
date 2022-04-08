@@ -209,9 +209,17 @@ object DMSpedPisCofins: TDMSpedPisCofins
     CachedUpdates = True
     Connection = DMConnection.FDConnection
     SQL.Strings = (
-      'SELECT * FROM SPED_0150')
+      'SELECT * FROM SPED_0150'
+      'WHERE COD_EMPRESA = :EMPRESA')
     Left = 176
     Top = 16
+    ParamData = <
+      item
+        Name = 'EMPRESA'
+        DataType = ftInteger
+        ParamType = ptInput
+        Value = 0
+      end>
     object sqlParticipantesCOD_PART: TStringField
       FieldName = 'COD_PART'
       Origin = 'COD_PART'
@@ -280,6 +288,12 @@ object DMSpedPisCofins: TDMSpedPisCofins
     object sqlParticipantesCOD_TRANSP: TIntegerField
       FieldName = 'COD_TRANSP'
       Origin = 'COD_TRANSP'
+    end
+    object sqlParticipantesCOD_EMPRESA: TIntegerField
+      FieldName = 'COD_EMPRESA'
+      Origin = 'COD_EMPRESA'
+      ProviderFlags = [pfInUpdate, pfInWhere, pfInKey]
+      Required = True
     end
   end
   object sqlConsulta: TFDQuery
@@ -518,6 +532,7 @@ object DMSpedPisCofins: TDMSpedPisCofins
       'from CUPOMITEM CI'
       'inner join PRODUTO P on CI.PRODICOD = P.PRODICOD'
       'where CI.CUPOA13ID = :ID_CUPOM'
+      'and CI.CPITCSTATUS <> '#39'C'#39
       
         'group by CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS, ALIQUO' +
         'TA_PIS, ALIQUOTA_COFINS, CI.CFOP')

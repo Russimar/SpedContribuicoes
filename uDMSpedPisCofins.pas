@@ -159,6 +159,7 @@ type
     Mem800PlanoConta: TStringField;
     sqlC175ALIQUOTA_PIS: TFloatField;
     sqlC175ALIQUOTA_COFINS: TFloatField;
+    sqlParticipantesCOD_EMPRESA: TIntegerField;
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
   private
@@ -425,8 +426,8 @@ procedure TDMSpedPisCofins.Gerar_Bloco_0_Reg0140;
 var
   i : integer;
 begin
-  fDMConnection.FDConnection.ExecSQL('delete from SPED_0150');
   Msg := 'Gerando registro 0140';
+  fDMConnection.FDConnection.ExecSQL('delete from SPED_0150');
   for I := 0 to Pred(FListaEmpressa.Count) do
   begin
     with ACBrSPEDPisCofins1.Bloco_0 do
@@ -461,6 +462,9 @@ begin
     // Registros Participantes
     Msg := 'Aguarde...Verificando Participantes!';
     Gravar_0150;
+    sqlParticipantes.Close;
+    sqlParticipantes.Params.ParamValues['EMPRESA'] := qryEmpresaEMPRICOD.AsInteger;
+    sqlParticipantes.Open;
     sqlParticipantes.First;
     Posicao := 0;
     sqlParticipantes.FetchAll;
@@ -695,6 +699,7 @@ var
   ValorBase: Real;
   Quantidade: Real;
   Cod_Situacao : String;
+  Total_C175 : currency;
 begin
   Msg := 'Gerando registro C100';
   with ACBrSPEDPisCofins1.Bloco_C do
@@ -726,6 +731,7 @@ begin
         begin
           Posicao := Posicao + 1;
           Msg := 'Gerando cupom do dia: ' + sqlConsulta.FieldByName('CUPODEMIS').AsString;
+          Total_C175 := 0;
           with RegistroC100New do
           begin
             IND_OPER := tpSaidaPrestacao;
@@ -807,6 +813,7 @@ begin
               begin
                 CFOP := sqlC175CFOP.AsString;
                 VL_OPR := sqlC175TOTAL_ITEM.AsFloat;
+                Total_C175 := Total_C175 +  VL_OPR;
                 VL_DESC := sqlC175VALOR_DESCONTO.AsFloat;
                 CST_PIS := StrToCstPis(sqlC175PRODA2CSTPIS.AsString);
                 CST_COFINS := StrToCstCofins(sqlC175PRODA2CSTCOFINS.AsString);
@@ -854,6 +861,10 @@ begin
                 INFO_COMPL := '';
               end;
               sqlC175.Next;
+            end;
+            if Total_C175 <> VL_MERC then
+            begin
+              VL_MERC := Total_C175;
             end;
           end;
           Application.ProcessMessages;
@@ -926,10 +937,14 @@ begin
               IND_OPER := tpEntradaAquisicao;
               IND_EMIT := edTerceiros;
             end;
-            if sqlConsulta.FieldByName('CLIEA13ID').AsString = EmptyStr then
+            if sqlConsulta.FieldByName('FORNICOD').AsString <> EmptyStr then
               COD_PART := 'F' + sqlConsulta.FieldByName('FORNICOD').AsString
             else
-              COD_PART := SQLLocate('SPED_0150', 'CNPJ', 'COD_PART', SQLLocate('CLIENTE', 'CLIEA13ID', 'CLIEA14CGC', sqlConsulta.FieldByName('CLIEA13ID').AsString));
+            if sqlConsulta.FieldByName('CLIEA13ID').AsString <> EmptyStr then
+              COD_PART := SQLLocate('SPED_0150', 'CNPJ', 'COD_PART', SQLLocate('CLIENTE', 'CLIEA13ID', 'CLIEA14CGC', sqlConsulta.FieldByName('CLIEA13ID').AsString))
+            else
+              COD_PART := SQLLocate('SPED_0150', 'CNPJ', 'COD_PART', SQLLocate('EMPRESA', 'EMPRICOD', 'EMPRA14CGC', sqlConsulta.FieldByName('EMPRICODDEST').AsString));
+
             COD_MOD := '55';
 
             Cod_Situacao := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'COD_SIT_DOCUMENTO', sqlConsulta.FieldByName('OPESICOD').AsString);
@@ -1203,7 +1218,7 @@ begin
         begin
           Posicao := Posicao + 1;
           Msg := 'Gerando notas de Compra do dia ' + FormatDateTime('dd.mm.yyyy',
-            sqlConsulta.FieldByName('NOCPDEMISSAO').AsDateTime);
+            sqlConsulta.FieldByName('NOCPDRECEBIMENTO').AsDateTime);
           with RegistroC100New do
           begin
             sqlConsulta2.Close;
@@ -2044,45 +2059,120 @@ procedure TDMSpedPisCofins.Gravar_0150;
 var
   Achou, IE: String;
 begin
-  // Zera tabela SPED_0150
-  sqlParticipantes.open;
-
   // Incluir participantes das Notas Fiscais no SPED_0150
   Msg := 'Verificando Participantes';
   sqlParticipantes.Close;
+  sqlParticipantes.Params.ParamValues['EMPRESA'] := qryEmpresaEMPRICOD.AsInteger;
   sqlParticipantes.open;
 
-  sqlConsulta.SQL.Clear;
-  sqlConsulta.SQL.Add('SELECT DISTINCT C.* FROM NOTAFISCAL N ');
-  sqlConsulta.SQL.Add('inner join CLIENTE C ON N.CLIEA13ID = C.CLIEA13ID ');
-  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy',
-    DataInicial) + ''') ');
-  sqlConsulta.SQL.Add('and (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal)
-    + ''') ');
-  sqlConsulta.SQL.Add('and (N.CLIEA13ID  IS NOT NULL) and ');
-  sqlConsulta.SQL.Add('(N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString +
-    ') and (N.NOFICSTATUS = ''E'')');
-  sqlConsulta.open;
-  while not sqlConsulta.Eof do
-  begin
-    try
-      sqlParticipantes.Insert;
-      sqlParticipantesCOD_PART.AsString := sqlConsulta.FieldByName('CLIEA13ID').AsString;
-      sqlParticipantesNOME.AsString := sqlConsulta.FieldByName('CLIEA60RAZAOSOC').AsString;
-      sqlParticipantesCOD_PAIS.AsString :=
-        sqlConsulta.FieldByName('CLIEICODPAIS').AsString;
-      if length(sqlConsulta.FieldByName('CLIEA14CGC').AsString) = 14 then
-      begin
-        sqlParticipantesCNPJ.AsString := sqlConsulta.FieldByName('CLIEA14CGC').AsString;
-        // verifica se o cliente tem inscriçao de produtor
-        If ((sqlConsulta.FieldByName('CLIEA20IE').isnull) or
-          (sqlConsulta.FieldByName('CLIEA20IE').AsString = '')) and
-          (sqlConsulta.FieldByName('CLIEA30OUTROSDOC').AsString <> '') then
-          sqlParticipantesIE.AsString :=
-            copy(sqlConsulta.FieldByName('CLIEA30OUTROSDOC').AsString, 0, 14)
+  try
+    sqlConsulta.SQL.Clear;
+    sqlConsulta.SQL.Add('SELECT DISTINCT C.* FROM NOTAFISCAL N ');
+    sqlConsulta.SQL.Add('inner join CLIENTE C ON N.CLIEA13ID = C.CLIEA13ID ');
+    sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy',
+      DataInicial) + ''') ');
+    sqlConsulta.SQL.Add('and (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal)
+      + ''') ');
+    sqlConsulta.SQL.Add('and (N.CLIEA13ID  IS NOT NULL) and ');
+    sqlConsulta.SQL.Add('(N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString +
+      ') and (N.NOFICSTATUS = ''E'')');
+    sqlConsulta.open;
+    while not sqlConsulta.Eof do
+    begin
+      try
+        sqlParticipantes.Insert;
+        sqlParticipantesCOD_PART.AsString := sqlConsulta.FieldByName('CLIEA13ID').AsString;
+        sqlParticipantesNOME.AsString := sqlConsulta.FieldByName('CLIEA60RAZAOSOC').AsString;
+        sqlParticipantesCOD_EMPRESA.AsInteger := qryEmpresaEMPRICOD.AsInteger;
+        sqlParticipantesCOD_PAIS.AsString :=
+          sqlConsulta.FieldByName('CLIEICODPAIS').AsString;
+        if length(sqlConsulta.FieldByName('CLIEA14CGC').AsString) = 14 then
+        begin
+          sqlParticipantesCNPJ.AsString := sqlConsulta.FieldByName('CLIEA14CGC').AsString;
+          // verifica se o cliente tem inscriçao de produtor
+          If ((sqlConsulta.FieldByName('CLIEA20IE').isnull) or
+            (sqlConsulta.FieldByName('CLIEA20IE').AsString = '')) and
+            (sqlConsulta.FieldByName('CLIEA30OUTROSDOC').AsString <> '') then
+            sqlParticipantesIE.AsString :=
+              copy(sqlConsulta.FieldByName('CLIEA30OUTROSDOC').AsString, 0, 14)
+          else
+            sqlParticipantesIE.AsString :=
+              copy(sqlConsulta.FieldByName('CLIEA20IE').AsString, 0, 14);
+          while pos('/', IE) > 0 do
+            delete(IE, pos('/', IE), 1);
+          while pos('.', IE) > 0 do
+            delete(IE, pos('.', IE), 1);
+          while pos('-', IE) > 0 do
+            delete(IE, pos('-', IE), 1);
+          if IE = 'ISENTO' then
+            IE := '';
+          sqlParticipantesIE.AsString := Trim(IE);
+        end
         else
-          sqlParticipantesIE.AsString :=
-            copy(sqlConsulta.FieldByName('CLIEA20IE').AsString, 0, 14);
+        begin
+          if length(sqlConsulta.FieldByName('CLIEA11CPF').AsString) = 11 then
+            sqlParticipantesCPF.AsString := sqlConsulta.FieldByName('CLIEA11CPF').AsString;
+        end;
+        sqlParticipantesCOD_MUN.AsString :=
+          sqlConsulta.FieldByName('CLIEIMUNICODFED').AsString;
+        sqlParticipantesENDERECO.AsString :=
+          Trim(sqlConsulta.FieldByName('CLIEA60ENDRES').AsString);
+        sqlParticipantesEND_NUM.AsString :=
+          Trim(sqlConsulta.FieldByName('CLIEA5NROENDRES').AsString);
+        sqlParticipantesBAIRRO.AsString :=
+          Trim(sqlConsulta.FieldByName('CLIEA60BAIRES').AsString);
+        sqlParticipantesCOD_SUFRAMA.AsString := '';
+        sqlParticipantesCOMPLEMENTO.AsString := '';
+        if (sqlParticipantesCPF.AsString = '') and
+          (sqlParticipantes.FieldByName('CNPJ').AsString = '') then
+        begin
+          if sqlConsulta.FieldByName('NOFIA13ID').AsString = '' then
+            exit;
+          sqlParticipantes.Cancel;
+          Showmessage('Falha ao Criar Tabela de Participantes! Falta CNPJ ou CPF!' + #13 +
+            #10 + 'Cliente: ' + sqlConsulta.FieldByName('CLIEA13ID').AsString);
+        end;
+        // Codigo Cidade IBGE
+        if (length(sqlParticipantes.FieldByName('COD_MUN').Value) <> 7) then
+        begin
+          sqlParticipantes.Cancel;
+          Showmessage('Falha ao Criar Tabela de Participantes! Codigo IBGE do Participante!'
+            + #13 + #10 + 'Cliente: ' + sqlConsulta.FieldByName('CLIEA13ID').AsString);
+        end;
+        sqlParticipantes.Post;
+      except
+        on E: Exception do
+        begin
+          Showmessage('Erro ao criar Participante Nota Fiscal' + E.Message);
+        end;
+      end;
+      Application.ProcessMessages;
+      sqlConsulta.Next;
+    end;
+    sqlConsulta.Close;
+
+    // Informa a PROPRIA EMPRESA caso existam notas emitidas para si proprio
+    sqlConsulta.SQL.Clear;
+    sqlConsulta.SQL.Add('SELECT DISTINCT E.* FROM NOTAFISCAL N ');
+    sqlConsulta.SQL.Add('inner join EMPRESA E ON N.EMPRICODDEST = E.EMPRICOD ');
+    sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
+    sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') and ');
+    sqlConsulta.SQL.Add('(N.EMPRICODDEST IS NOT NULL) and (N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ') and (N.NOFICSTATUS = ''E'')');
+    sqlConsulta.open;
+    while not sqlConsulta.Eof do
+    begin
+      // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (EMPRESAS)
+      try
+        sqlParticipantes.Append;
+        sqlParticipantesCOD_PART.AsString := 'E' + sqlConsulta.FieldByName
+          ('EMPRICOD').AsString;
+        sqlParticipantesNOME.AsString :=
+          Trim(sqlConsulta.FieldByName('EMPRA60RAZAOSOC').AsString);
+        sqlParticipantesCOD_PAIS.AsString := '1058';
+        sqlParticipantesCNPJ.AsString := sqlConsulta.FieldByName('EMPRA14CGC').AsString;
+        sqlParticipantesCPF.AsString := sqlConsulta.FieldByName('EMPRA11CPF').AsString;
+        sqlParticipantesCOD_EMPRESA.AsInteger := qryEmpresaEMPRICOD.AsInteger;
+        IE := copy(sqlConsulta.FieldByName('EMPRA20IE').AsString, 0, 14);
         while pos('/', IE) > 0 do
           delete(IE, pos('/', IE), 1);
         while pos('.', IE) > 0 do
@@ -2091,221 +2181,61 @@ begin
           delete(IE, pos('-', IE), 1);
         if IE = 'ISENTO' then
           IE := '';
-        sqlParticipantesIE.AsString := Trim(IE);
-      end
-      else
-      begin
-        if length(sqlConsulta.FieldByName('CLIEA11CPF').AsString) = 11 then
-          sqlParticipantesCPF.AsString := sqlConsulta.FieldByName('CLIEA11CPF').AsString;
-      end;
-      sqlParticipantesCOD_MUN.AsString :=
-        sqlConsulta.FieldByName('CLIEIMUNICODFED').AsString;
-      sqlParticipantesENDERECO.AsString :=
-        Trim(sqlConsulta.FieldByName('CLIEA60ENDRES').AsString);
-      sqlParticipantesEND_NUM.AsString :=
-        Trim(sqlConsulta.FieldByName('CLIEA5NROENDRES').AsString);
-      sqlParticipantesBAIRRO.AsString :=
-        Trim(sqlConsulta.FieldByName('CLIEA60BAIRES').AsString);
-      sqlParticipantesCOD_SUFRAMA.AsString := '';
-      sqlParticipantesCOMPLEMENTO.AsString := '';
-      if (sqlParticipantesCPF.AsString = '') and
-        (sqlParticipantes.FieldByName('CNPJ').AsString = '') then
-      begin
-        if sqlConsulta.FieldByName('NOFIA13ID').AsString = '' then
-          exit;
-        sqlParticipantes.Cancel;
-        Showmessage('Falha ao Criar Tabela de Participantes! Falta CNPJ ou CPF!' + #13 +
-          #10 + 'Cliente: ' + sqlConsulta.FieldByName('CLIEA13ID').AsString);
-      end;
-      // Codigo Cidade IBGE
-      if (length(sqlParticipantes.FieldByName('COD_MUN').Value) <> 7) then
-      begin
-        sqlParticipantes.Cancel;
-        Showmessage('Falha ao Criar Tabela de Participantes! Codigo IBGE do Participante!'
-          + #13 + #10 + 'Cliente: ' + sqlConsulta.FieldByName('CLIEA13ID').AsString);
-      end;
-      sqlParticipantes.Post;
-    except
-      on E: Exception do
-      begin
-        Showmessage('Erro ao criar Participante Nota Fiscal' + E.Message);
-      end;
-    end;
-    Application.ProcessMessages;
-    sqlConsulta.Next;
-  end;
-  sqlConsulta.Close;
+        sqlParticipantes.FieldByName('IE').AsString := Trim(IE);
 
-  // Informa a PROPRIA EMPRESA caso existam notas emitidas para si proprio
-  sqlConsulta.SQL.Clear;
-  sqlConsulta.SQL.Add('SELECT DISTINCT E.* FROM NOTAFISCAL N ');
-  sqlConsulta.SQL.Add('inner join EMPRESA E ON N.EMPRICODDEST = E.EMPRICOD ');
-  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
-  sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') and ');
-  sqlConsulta.SQL.Add('(N.EMPRICODDEST IS NOT NULL) and (N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ') and (N.NOFICSTATUS = ''E'')');
-  sqlConsulta.open;
-  while not sqlConsulta.Eof do
-  begin
-    // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (EMPRESAS)
-    try
-      sqlParticipantes.Append;
-      sqlParticipantesCOD_PART.AsString := 'E' + sqlConsulta.FieldByName
-        ('EMPRICOD').AsString;
-      sqlParticipantesNOME.AsString :=
-        Trim(sqlConsulta.FieldByName('EMPRA60RAZAOSOC').AsString);
-      sqlParticipantesCOD_PAIS.AsString := '1058';
-      sqlParticipantesCNPJ.AsString := sqlConsulta.FieldByName('EMPRA14CGC').AsString;
-      sqlParticipantesCPF.AsString := sqlConsulta.FieldByName('EMPRA11CPF').AsString;
-      IE := copy(sqlConsulta.FieldByName('EMPRA20IE').AsString, 0, 14);
-      while pos('/', IE) > 0 do
-        delete(IE, pos('/', IE), 1);
-      while pos('.', IE) > 0 do
-        delete(IE, pos('.', IE), 1);
-      while pos('-', IE) > 0 do
-        delete(IE, pos('-', IE), 1);
-      if IE = 'ISENTO' then
-        IE := '';
-      sqlParticipantes.FieldByName('IE').AsString := Trim(IE);
-
-      sqlParticipantes.FieldByName('COD_MUN').AsString := sqlConsulta.FieldByName('EMPRIMUNICODFED').AsString;
-      sqlParticipantes.FieldByName('ENDERECO').AsString := Trim(sqlConsulta.FieldByName('EMPRA60END').AsString);
-      sqlParticipantes.FieldByName('END_NUM').AsString := Trim(sqlConsulta.FieldByName('EMPRIENDNRO').AsString);
-      sqlParticipantes.FieldByName('BAIRRO').AsString := Trim(sqlConsulta.FieldByName('EMPRA60BAI').AsString);
-      sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := Trim(sqlConsulta.FieldByName('EMPRA9SUFRAMA').AsString);
-      sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
-      sqlParticipantes.Post;
-    Except
-      on E: Exception do
-      begin
-        Showmessage('Falha ao Criar Tabela de Participantes (Empresa):' + #13 + #10 +
-          E.Message + #13 + #10 + 'Empresa: ' + sqlConsulta.FieldByName('EMPRICOD')
-          .AsString);
-        exit;
-      end;
-    end;
-    Application.ProcessMessages;
-    sqlConsulta.Next;
-  end;
-  sqlConsulta.Close;
-
-  // Informa a FORNECEDOR caso existam notas emitidas para fornecedor
-  sqlConsulta.SQL.Clear;
-  sqlConsulta.SQL.Add('SELECT DISTINCT F.* FROM NOTAFISCAL N ');
-  sqlConsulta.SQL.Add('inner join FORNECEDOR F ON N.FORNICOD = F.FORNICOD ');
-  sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
-  sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') and ');
-  sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOFICSTATUS = ''E'') and');
-  sqlConsulta.SQL.Add('(N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ')');
-  sqlConsulta.open;
-  while not sqlConsulta.Eof do
-  begin
-    // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (EMPRESAS)
-    try
-      sqlParticipantes.Append;
-      sqlParticipantesCOD_PART.AsString := 'f' + sqlConsulta.FieldByName
-        ('FORNICOD').AsString;
-      sqlParticipantesNOME.AsString :=
-        Trim(sqlConsulta.FieldByName('FORNA60RAZAOSOC').AsString);
-      sqlParticipantesCOD_PAIS.AsString := '1058';
-      sqlParticipantesCNPJ.AsString := sqlConsulta.FieldByName('FORNA14CGC').AsString;
-      sqlParticipantesCPF.AsString := sqlConsulta.FieldByName('FORNA11CPF').AsString;
-      IE := copy(sqlConsulta.FieldByName('FORNA20IE').AsString, 0, 14);
-      while pos('/', IE) > 0 do
-        delete(IE, pos('/', IE), 1);
-      while pos('.', IE) > 0 do
-        delete(IE, pos('.', IE), 1);
-      while pos('-', IE) > 0 do
-        delete(IE, pos('-', IE), 1);
-      if IE = 'ISENTO' then
-        IE := '';
-      sqlParticipantes.FieldByName('IE').AsString := Trim(IE);
-
-      sqlParticipantes.FieldByName('COD_MUN').AsString :=
-        sqlConsulta.FieldByName('FORNIMUNICODFED').AsString;
-      sqlParticipantes.FieldByName('ENDERECO').AsString :=
-        Trim(sqlConsulta.FieldByName('FORNA60END').AsString);
-      sqlParticipantes.FieldByName('END_NUM').AsString :=
-        Trim(sqlConsulta.FieldByName('FORNA5NROEND').AsString);
-      sqlParticipantes.FieldByName('BAIRRO').AsString :=
-        Trim(sqlConsulta.FieldByName('FORNA60BAI').AsString);
-      sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := '';
-      sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
-      sqlParticipantes.Post;
-    Except
-      on E: Exception do
-      begin
-        // Showmessage('Falha ao Criar Tabela de Participantes (Empresa):'+#13+#10+E.Message+#13+#10+'Empresa: '+sqlConsulta.FieldByName('EMPRICOD').AsString);
-        // ErroLog := 'Falha ao Criar Tabela de Participantes (Empresa):' + #13 +
-        // #10 + E.Message + #13 + #10 + 'Empresa: ' + sqlConsulta.FieldByName
-        // ('EMPRICOD').AsString;
-        exit;
-      end;
-    end;
-    Application.ProcessMessages;
-    sqlConsulta.Next;
-  end;
-  sqlConsulta.Close;
-
-  sqlConsulta.SQL.Clear;
-  sqlConsulta.SQL.Add('SELECT DISTINCT F.* FROM NOTACOMPRA N ');
-  sqlConsulta.SQL.Add('Left Join FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
-  sqlConsulta.SQL.Add('Where N.NOCPDRECEBIMENTO >= ''' + FormatDateTime('mm/dd/yyyy',
-    DataInicial) + ''' and ');
-  sqlConsulta.SQL.Add('N.NOCPDRECEBIMENTO <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
-    ''' AND ');
-  sqlConsulta.SQL.Add('N.EMPRICODDESTCOMPRA = ' + qryEmpresaEMPRICOD.AsString + ' AND ');
-  sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOCPCSTATUS = ''E'') ');
-  sqlConsulta.open;
-  while not sqlConsulta.Eof do
-  begin
-    // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (CLIENTES E FORNECEDORES)
-    try
-      Achou := 'N';
-      if sqlConsulta.FieldByName('FORNA14CGC').AsString <> '' then
-        if sqlParticipantes.Locate('CNPJ', sqlConsulta.FieldByName('FORNA14CGC')
-          .AsString, []) then
-        Begin
-          sqlParticipantes.Edit;
-          sqlParticipantes.FieldByName('COD_FORN').AsInteger :=
-            sqlConsulta.FieldByName('FORNICOD').AsInteger;
-          sqlParticipantes.Post;
-          Achou := 'S';
-        End;
-
-      if sqlConsulta.FieldByName('FORNA11CPF').AsString <> '' then
-        if sqlParticipantes.Locate('CPF', sqlConsulta.FieldByName('FORNA11CPF')
-          .AsString, []) then
+        sqlParticipantes.FieldByName('COD_MUN').AsString := sqlConsulta.FieldByName('EMPRIMUNICODFED').AsString;
+        sqlParticipantes.FieldByName('ENDERECO').AsString := Trim(sqlConsulta.FieldByName('EMPRA60END').AsString);
+        sqlParticipantes.FieldByName('END_NUM').AsString := Trim(sqlConsulta.FieldByName('EMPRIENDNRO').AsString);
+        sqlParticipantes.FieldByName('BAIRRO').AsString := Trim(sqlConsulta.FieldByName('EMPRA60BAI').AsString);
+        sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := Trim(sqlConsulta.FieldByName('EMPRA9SUFRAMA').AsString);
+        sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
+        sqlParticipantes.Post;
+      Except
+        on E: Exception do
         begin
-          sqlParticipantes.Edit;
-          sqlParticipantes.FieldByName('COD_FORN').AsInteger :=
-            sqlConsulta.FieldByName('FORNICOD').AsInteger;
-          sqlParticipantes.Post;
-          Achou := 'S';
+          Showmessage('Falha ao Criar Tabela de Participantes (Empresa):' + #13 + #10 +
+            E.Message + #13 + #10 + 'Empresa: ' + sqlConsulta.FieldByName('EMPRICOD')
+            .AsString);
+          exit;
         end;
+      end;
+      Application.ProcessMessages;
+      sqlConsulta.Next;
+    end;
+    sqlConsulta.Close;
 
-      If Achou = 'N' then
-      Begin
+    // Informa a FORNECEDOR caso existam notas emitidas para fornecedor
+    sqlConsulta.SQL.Clear;
+    sqlConsulta.SQL.Add('SELECT DISTINCT F.* FROM NOTAFISCAL N ');
+    sqlConsulta.SQL.Add('inner join FORNECEDOR F ON N.FORNICOD = F.FORNICOD ');
+    sqlConsulta.SQL.Add('WHERE (N.NOFIDEMIS >=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
+    sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') and ');
+    sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOFICSTATUS = ''E'') and');
+    sqlConsulta.SQL.Add('(N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ')');
+    sqlConsulta.open;
+    while not sqlConsulta.Eof do
+    begin
+      // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (EMPRESAS)
+      try
         sqlParticipantes.Append;
-        sqlParticipantes.FieldByName('COD_PART').AsString :=
-          'F' + sqlConsulta.FieldByName('FORNICOD').AsString;
-        sqlParticipantes.FieldByName('COD_FORN').AsString :=
-          sqlConsulta.FieldByName('FORNICOD').AsString;
-        sqlParticipantes.FieldByName('NOME').AsString :=
+        sqlParticipantesCOD_PART.AsString := 'f' + sqlConsulta.FieldByName
+          ('FORNICOD').AsString;
+        sqlParticipantesNOME.AsString :=
           Trim(sqlConsulta.FieldByName('FORNA60RAZAOSOC').AsString);
-        sqlParticipantes.FieldByName('COD_PAIS').AsString :=
-          sqlConsulta.FieldByName('FORNICODPAIS').AsString;
-        sqlParticipantes.FieldByName('CNPJ').AsString :=
-          sqlConsulta.FieldByName('FORNA14CGC').AsString;
-        sqlParticipantes.FieldByName('CPF').AsString :=
-          sqlConsulta.FieldByName('FORNA11CPF').AsString;
+        sqlParticipantesCOD_PAIS.AsString := '1058';
+        sqlParticipantesCNPJ.AsString := sqlConsulta.FieldByName('FORNA14CGC').AsString;
+        sqlParticipantesCPF.AsString := sqlConsulta.FieldByName('FORNA11CPF').AsString;
+        sqlParticipantesCOD_EMPRESA.AsInteger := qryEmpresaEMPRICOD.AsInteger;
         IE := copy(sqlConsulta.FieldByName('FORNA20IE').AsString, 0, 14);
         while pos('/', IE) > 0 do
           delete(IE, pos('/', IE), 1);
         while pos('.', IE) > 0 do
           delete(IE, pos('.', IE), 1);
+        while pos('-', IE) > 0 do
+          delete(IE, pos('-', IE), 1);
         if IE = 'ISENTO' then
           IE := '';
-        sqlParticipantes.FieldByName('IE').AsString := IE;
+        sqlParticipantes.FieldByName('IE').AsString := Trim(IE);
 
         sqlParticipantes.FieldByName('COD_MUN').AsString :=
           sqlConsulta.FieldByName('FORNIMUNICODFED').AsString;
@@ -2317,126 +2247,92 @@ begin
           Trim(sqlConsulta.FieldByName('FORNA60BAI').AsString);
         sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := '';
         sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
-
-        // Codigo Cidade IBGE
-        if (length(sqlParticipantes.FieldByName('COD_MUN').Value) <> 7) then
-        begin
-          sqlParticipantes.Cancel;
-          Showmessage
-            ('Falha ao Criar Tabela de Participantes! Codigo IBGE do Participante!' + #13
-            + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
-        end;
-        // Endereco Vazio
-        if (sqlParticipantes.FieldByName('ENDERECO').AsString = '') then
-        begin
-          sqlParticipantes.Cancel;
-          Showmessage('Falha ao Criar Tabela de Participantes! Endereço do Participante!'
-            + #13 + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
-        end;
-        // Endereco Numero Vazio
-        if (sqlParticipantes.FieldByName('END_NUM').AsString = '') then
-        begin
-          sqlParticipantes.Cancel;
-          Showmessage
-            ('Falha ao Criar Tabela de Participantes! Numero do Endereço do Participante!'
-            + #13 + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
-        end;
-        // Bairro Vazio
-        if (sqlParticipantes.FieldByName('BAIRRO').AsString = '') then
-        begin
-          sqlParticipantes.Cancel;
-          Showmessage('Falha ao Criar Tabela de Participantes! Bairro do Participante!' +
-            #13 + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
-        end;
         sqlParticipantes.Post;
-      End;
-    except
-      on E: Exception do
-      begin
-        Showmessage('Falha ao Criar Tabela de Participantes (Fornecedores Nota Compra):' +
-          #13 + #10 + E.Message + #13 + #10 + 'Fornecedor: ' +
-          sqlConsulta.FieldByName('FORNICOD').AsString);
-        exit;
+      Except
+        on E: Exception do
+        begin
+          // Showmessage('Falha ao Criar Tabela de Participantes (Empresa):'+#13+#10+E.Message+#13+#10+'Empresa: '+sqlConsulta.FieldByName('EMPRICOD').AsString);
+          // ErroLog := 'Falha ao Criar Tabela de Participantes (Empresa):' + #13 +
+          // #10 + E.Message + #13 + #10 + 'Empresa: ' + sqlConsulta.FieldByName
+          // ('EMPRICOD').AsString;
+          exit;
+        end;
       end;
+      Application.ProcessMessages;
+      sqlConsulta.Next;
     end;
-    Application.ProcessMessages;
-    sqlConsulta.Next;
-  end;
+    sqlConsulta.Close;
 
-  sqlConsulta.Close;
-  sqlConsulta.SQL.Clear;
-  sqlConsulta.SQL.Add('SELECT DISTINCT T.* FROM CONHECIMENTOS C ');
-  sqlConsulta.SQL.Add('LEFT join TRANSPORTADORA T ON T.TRANICOD = C.COD_PART ');
-  sqlConsulta.SQL.Add('WHERE (C.DT_AQUIS >=''' + FormatDateTime('dd/dd/yyyy', DataInicial)
-    + ''') AND ');
-  sqlConsulta.SQL.Add('(C.DT_AQUIS <=''' + FormatDateTime('dd/dd/yyyy',
-    DataFinal) + ''')');
-  sqlConsulta.open;
-  while not sqlConsulta.Eof do
-  begin
-    try
-      Achou := 'N';
-      if sqlConsulta.FieldByName('TRANA14CGC').AsString <> '' then
-        if sqlParticipantes.Locate('CNPJ', sqlConsulta.FieldByName('TRANA14CGC')
-          .AsString, []) then
-        begin
-          sqlParticipantes.Edit;
-          sqlParticipantes.FieldByName('COD_TRANSP').AsInteger :=
-            sqlConsulta.FieldByName('TRANICOD').AsInteger;
-          sqlParticipantes.Post;
-          Achou := 'S';
-        end;
+    sqlConsulta.SQL.Clear;
+    sqlConsulta.SQL.Add('SELECT DISTINCT F.* FROM NOTACOMPRA N ');
+    sqlConsulta.SQL.Add('Left Join FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
+    sqlConsulta.SQL.Add('Where N.NOCPDRECEBIMENTO >= ''' + FormatDateTime('mm/dd/yyyy',
+      DataInicial) + ''' and ');
+    sqlConsulta.SQL.Add('N.NOCPDRECEBIMENTO <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
+      ''' AND ');
+    sqlConsulta.SQL.Add('N.EMPRICODDESTCOMPRA = ' + qryEmpresaEMPRICOD.AsString + ' AND ');
+    sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOCPCSTATUS = ''E'') ');
+    sqlConsulta.open;
+    while not sqlConsulta.Eof do
+    begin
+      // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (CLIENTES E FORNECEDORES)
+      try
+        Achou := 'N';
+        if sqlConsulta.FieldByName('FORNA14CGC').AsString <> '' then
+          if sqlParticipantes.Locate('CNPJ', sqlConsulta.FieldByName('FORNA14CGC')
+            .AsString, []) then
+          Begin
+            sqlParticipantes.Edit;
+            sqlParticipantes.FieldByName('COD_FORN').AsInteger :=
+              sqlConsulta.FieldByName('FORNICOD').AsInteger;
+            sqlParticipantes.Post;
+            Achou := 'S';
+          End;
 
-      if sqlConsulta.FieldByName('TRANA11CPF').AsString <> '' then
-        if sqlParticipantes.Locate('CPF', sqlConsulta.FieldByName('TRANA11CPF')
-          .AsString, []) then
-        begin
-          sqlParticipantes.Edit;
-          sqlParticipantes.FieldByName('COD_TRANSP').AsInteger :=
-            sqlConsulta.FieldByName('TRANICOD').AsInteger;
-          sqlParticipantes.Post;
-          Achou := 'S';
-        end;
+        if sqlConsulta.FieldByName('FORNA11CPF').AsString <> '' then
+          if sqlParticipantes.Locate('CPF', sqlConsulta.FieldByName('FORNA11CPF')
+            .AsString, []) then
+          begin
+            sqlParticipantes.Edit;
+            sqlParticipantes.FieldByName('COD_FORN').AsInteger :=
+              sqlConsulta.FieldByName('FORNICOD').AsInteger;
+            sqlParticipantes.Post;
+            Achou := 'S';
+          end;
 
-      if sqlParticipantes.Locate('COD_PART', sqlConsulta.FieldByName('TRANICOD')
-        .AsString, []) then
-        Achou := 'S';
-
-      if (sqlConsulta.FieldByName('TRANA60RAZAOSOC').AsString = 'O EMITENTE') or
-        (sqlConsulta.FieldByName('TRANA60RAZAOSOC').AsString = 'O DESTINATARIO') then
-        Achou := 'S';
-
-      if Achou = 'N' then
-      begin
-        if not sqlConsulta.FieldByName('TRANICOD').isnull then
-        begin
+        If Achou = 'N' then
+        Begin
           sqlParticipantes.Append;
+          sqlParticipantesCOD_EMPRESA.AsInteger := qryEmpresaEMPRICOD.AsInteger;
           sqlParticipantes.FieldByName('COD_PART').AsString :=
-            'T' + sqlConsulta.FieldByName('TRANICOD').AsString;
-          sqlParticipantes.FieldByName('COD_TRANSP').AsString :=
-            sqlConsulta.FieldByName('TRANICOD').AsString;
+            'F' + sqlConsulta.FieldByName('FORNICOD').AsString;
+          sqlParticipantes.FieldByName('COD_FORN').AsString :=
+            sqlConsulta.FieldByName('FORNICOD').AsString;
           sqlParticipantes.FieldByName('NOME').AsString :=
-            Trim(sqlConsulta.FieldByName('TRANA60RAZAOSOC').AsString);
-          sqlParticipantes.FieldByName('COD_PAIS').AsString := '1058';
+            Trim(sqlConsulta.FieldByName('FORNA60RAZAOSOC').AsString);
+          sqlParticipantes.FieldByName('COD_PAIS').AsString :=
+            sqlConsulta.FieldByName('FORNICODPAIS').AsString;
           sqlParticipantes.FieldByName('CNPJ').AsString :=
-            sqlConsulta.FieldByName('TRANA14CGC').AsString;
+            sqlConsulta.FieldByName('FORNA14CGC').AsString;
           sqlParticipantes.FieldByName('CPF').AsString :=
-            sqlConsulta.FieldByName('TRANA11CPF').AsString;
-          IE := copy(sqlConsulta.FieldByName('TRANA15IE').AsString, 0, 14);
+            sqlConsulta.FieldByName('FORNA11CPF').AsString;
+          IE := copy(sqlConsulta.FieldByName('FORNA20IE').AsString, 0, 14);
           while pos('/', IE) > 0 do
             delete(IE, pos('/', IE), 1);
           while pos('.', IE) > 0 do
             delete(IE, pos('.', IE), 1);
+          if IE = 'ISENTO' then
+            IE := '';
           sqlParticipantes.FieldByName('IE').AsString := IE;
 
           sqlParticipantes.FieldByName('COD_MUN').AsString :=
-            sqlConsulta.FieldByName('TRANICODMUNICIPIO').AsString;
+            sqlConsulta.FieldByName('FORNIMUNICODFED').AsString;
           sqlParticipantes.FieldByName('ENDERECO').AsString :=
-            Trim(sqlConsulta.FieldByName('TRANA60END').AsString);
+            Trim(sqlConsulta.FieldByName('FORNA60END').AsString);
           sqlParticipantes.FieldByName('END_NUM').AsString :=
-            Trim(sqlConsulta.FieldByName('TRANA5NROEND').AsString);
+            Trim(sqlConsulta.FieldByName('FORNA5NROEND').AsString);
           sqlParticipantes.FieldByName('BAIRRO').AsString :=
-            Trim(sqlConsulta.FieldByName('TRANA60BAI').AsString);
+            Trim(sqlConsulta.FieldByName('FORNA60BAI').AsString);
           sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := '';
           sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
 
@@ -2445,28 +2341,152 @@ begin
           begin
             sqlParticipantes.Cancel;
             Showmessage
-              ('Falha ao Criar Tabela de Participantes! Codigo IBGE do Participante!' +
-              #13 + #10 + 'Transportadora: ' + sqlConsulta.FieldByName
-              ('TRANICODMUNICIPIO').AsString);
-            exit;
+              ('Falha ao Criar Tabela de Participantes! Codigo IBGE do Participante!' + #13
+              + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
+          end;
+          // Endereco Vazio
+          if (sqlParticipantes.FieldByName('ENDERECO').AsString = '') then
+          begin
+            sqlParticipantes.Cancel;
+            Showmessage('Falha ao Criar Tabela de Participantes! Endereço do Participante!'
+              + #13 + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
+          end;
+          // Endereco Numero Vazio
+          if (sqlParticipantes.FieldByName('END_NUM').AsString = '') then
+          begin
+            sqlParticipantes.Cancel;
+            Showmessage
+              ('Falha ao Criar Tabela de Participantes! Numero do Endereço do Participante!'
+              + #13 + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
+          end;
+          // Bairro Vazio
+          if (sqlParticipantes.FieldByName('BAIRRO').AsString = '') then
+          begin
+            sqlParticipantes.Cancel;
+            Showmessage('Falha ao Criar Tabela de Participantes! Bairro do Participante!' +
+              #13 + #10 + 'Fornecedor: ' + sqlConsulta.FieldByName('FORNICOD').AsString);
           end;
           sqlParticipantes.Post;
+        End;
+      except
+        on E: Exception do
+        begin
+          Showmessage('Falha ao Criar Tabela de Participantes (Fornecedores Nota Compra):' +
+            #13 + #10 + E.Message + #13 + #10 + 'Fornecedor: ' +
+            sqlConsulta.FieldByName('FORNICOD').AsString);
+          exit;
         end;
       end;
-    except
-      on E: Exception do
-      begin
-        Showmessage('Falha ao Criar Tabela de Participantes (Fornecedores Nota Compra):' +
-          #13 + #10 + E.Message + #13 + #10 + 'Transportador CONHECIMENTOS: ' +
-          sqlConsulta.FieldByName('TRANICOD').AsString);
-        exit;
-      end;
+      Application.ProcessMessages;
+      sqlConsulta.Next;
     end;
-    Application.ProcessMessages;
-    sqlConsulta.Next;
-  end;
 
-  sqlParticipantes.ApplyUpdates(0);
+    sqlConsulta.Close;
+    sqlConsulta.SQL.Clear;
+    sqlConsulta.SQL.Add('SELECT DISTINCT T.* FROM CONHECIMENTOS C ');
+    sqlConsulta.SQL.Add('LEFT join TRANSPORTADORA T ON T.TRANICOD = C.COD_PART ');
+    sqlConsulta.SQL.Add('WHERE (C.DT_AQUIS >=''' + FormatDateTime('dd/dd/yyyy', DataInicial)
+      + ''') AND ');
+    sqlConsulta.SQL.Add('(C.DT_AQUIS <=''' + FormatDateTime('dd/dd/yyyy',
+      DataFinal) + ''')');
+    sqlConsulta.open;
+    while not sqlConsulta.Eof do
+    begin
+      try
+        Achou := 'N';
+        if sqlConsulta.FieldByName('TRANA14CGC').AsString <> '' then
+          if sqlParticipantes.Locate('CNPJ', sqlConsulta.FieldByName('TRANA14CGC')
+            .AsString, []) then
+          begin
+            sqlParticipantes.Edit;
+            sqlParticipantes.FieldByName('COD_TRANSP').AsInteger :=
+              sqlConsulta.FieldByName('TRANICOD').AsInteger;
+            sqlParticipantes.Post;
+            Achou := 'S';
+          end;
+
+        if sqlConsulta.FieldByName('TRANA11CPF').AsString <> '' then
+          if sqlParticipantes.Locate('CPF', sqlConsulta.FieldByName('TRANA11CPF')
+            .AsString, []) then
+          begin
+            sqlParticipantes.Edit;
+            sqlParticipantes.FieldByName('COD_TRANSP').AsInteger :=
+              sqlConsulta.FieldByName('TRANICOD').AsInteger;
+            sqlParticipantes.Post;
+            Achou := 'S';
+          end;
+
+        if sqlParticipantes.Locate('COD_PART', sqlConsulta.FieldByName('TRANICOD')
+          .AsString, []) then
+          Achou := 'S';
+
+        if (sqlConsulta.FieldByName('TRANA60RAZAOSOC').AsString = 'O EMITENTE') or
+          (sqlConsulta.FieldByName('TRANA60RAZAOSOC').AsString = 'O DESTINATARIO') then
+          Achou := 'S';
+
+        if Achou = 'N' then
+        begin
+          if not sqlConsulta.FieldByName('TRANICOD').isnull then
+          begin
+            sqlParticipantes.Append;
+            sqlParticipantesCOD_EMPRESA.AsInteger := qryEmpresaEMPRICOD.AsInteger;
+            sqlParticipantes.FieldByName('COD_PART').AsString :=
+              'T' + sqlConsulta.FieldByName('TRANICOD').AsString;
+            sqlParticipantes.FieldByName('COD_TRANSP').AsString :=
+              sqlConsulta.FieldByName('TRANICOD').AsString;
+            sqlParticipantes.FieldByName('NOME').AsString :=
+              Trim(sqlConsulta.FieldByName('TRANA60RAZAOSOC').AsString);
+            sqlParticipantes.FieldByName('COD_PAIS').AsString := '1058';
+            sqlParticipantes.FieldByName('CNPJ').AsString :=
+              sqlConsulta.FieldByName('TRANA14CGC').AsString;
+            sqlParticipantes.FieldByName('CPF').AsString :=
+              sqlConsulta.FieldByName('TRANA11CPF').AsString;
+            IE := copy(sqlConsulta.FieldByName('TRANA15IE').AsString, 0, 14);
+            while pos('/', IE) > 0 do
+              delete(IE, pos('/', IE), 1);
+            while pos('.', IE) > 0 do
+              delete(IE, pos('.', IE), 1);
+            sqlParticipantes.FieldByName('IE').AsString := IE;
+
+            sqlParticipantes.FieldByName('COD_MUN').AsString :=
+              sqlConsulta.FieldByName('TRANICODMUNICIPIO').AsString;
+            sqlParticipantes.FieldByName('ENDERECO').AsString :=
+              Trim(sqlConsulta.FieldByName('TRANA60END').AsString);
+            sqlParticipantes.FieldByName('END_NUM').AsString :=
+              Trim(sqlConsulta.FieldByName('TRANA5NROEND').AsString);
+            sqlParticipantes.FieldByName('BAIRRO').AsString :=
+              Trim(sqlConsulta.FieldByName('TRANA60BAI').AsString);
+            sqlParticipantes.FieldByName('COD_SUFRAMA').AsString := '';
+            sqlParticipantes.FieldByName('COMPLEMENTO').AsString := '';
+
+            // Codigo Cidade IBGE
+            if (length(sqlParticipantes.FieldByName('COD_MUN').Value) <> 7) then
+            begin
+              sqlParticipantes.Cancel;
+              Showmessage
+                ('Falha ao Criar Tabela de Participantes! Codigo IBGE do Participante!' +
+                #13 + #10 + 'Transportadora: ' + sqlConsulta.FieldByName
+                ('TRANICODMUNICIPIO').AsString);
+              exit;
+            end;
+            sqlParticipantes.Post;
+          end;
+        end;
+      except
+        on E: Exception do
+        begin
+          Showmessage('Falha ao Criar Tabela de Participantes (Fornecedores Nota Compra):' +
+            #13 + #10 + E.Message + #13 + #10 + 'Transportador CONHECIMENTOS: ' +
+            sqlConsulta.FieldByName('TRANICOD').AsString);
+          exit;
+        end;
+      end;
+      Application.ProcessMessages;
+      sqlConsulta.Next;
+    end;
+  finally
+    sqlParticipantes.ApplyUpdates(0);
+  end;
 end;
 
 procedure TDMSpedPisCofins.Gravar_0190;
@@ -2623,5 +2643,6 @@ begin
   if Assigned(FevProgressao) then
     FevProgressao(Value);
 end;
+
 
 end.
