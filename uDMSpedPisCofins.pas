@@ -573,7 +573,8 @@ begin
         COD_LST := '';
         ALIQ_ICMS := sqlProdutoALIQUOTAICM.AsFloat;
       end;
-      Application.ProcessMessages;
+      if Posicao mod 100 = 0  then
+        Application.ProcessMessages;
       sqlProduto.Next;
     end;
   end;
@@ -605,7 +606,8 @@ begin
         end;
       end;
     end;
-    Application.ProcessMessages;
+    if Posicao mod 100 = 0  then
+      Application.ProcessMessages;
     sqlOperacao.Next;
   end;
 
@@ -647,7 +649,8 @@ begin
         end;
       end;
     end;
-    Application.ProcessMessages;
+    if Posicao mod 100 = 0  then
+      Application.ProcessMessages;
     sqlPlanoContas.Next;
   end;
 end;
@@ -716,7 +719,8 @@ begin
         Msg := 'Abrindo cupom Fiscal';
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;
-        sqlConsulta.SQL.Add('Select N.* from CUPOM N ');
+        sqlConsulta.SQL.Add('Select N.*, O.PLCTA15CODCRED from CUPOM N ');
+        sqlConsulta.SQL.Add('left join OPERACAOESTOQUE O on O.OPESICOD = N.OPESICOD ');
         sqlConsulta.SQL.Add('Where (N.CUPODEMIS>=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
         sqlConsulta.SQL.Add('and (N.CUPODEMIS<=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') AND ');
         sqlConsulta.SQL.Add('N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString + ' AND (N.CUPOCSTATUS = ''A'' or N.CUPOCSTATUS = ''C'') ');
@@ -727,6 +731,7 @@ begin
         sqlConsulta.FetchAll;
         Max := sqlConsulta.RecordCount;
         sqlConsulta.DisableControls;
+
         while not sqlConsulta.Eof do
         begin
           Posicao := Posicao + 1;
@@ -777,6 +782,7 @@ begin
             sqlConsulta2.ParamByName('ID_CUPOM').AsString :=
               sqlConsulta.FieldByName('CUPOA13ID').AsString;
             sqlConsulta2.open;
+            sqlConsulta2.DisableControls;
             VL_BC_ICMS := sqlConsulta2.FieldByName('CPITN2BASEICMS').AsFloat;
             VL_ICMS := sqlConsulta2.FieldByName('CPITN2VLRICMS').AsFloat;
             VL_BC_ICMS_ST := 0;
@@ -788,6 +794,7 @@ begin
               sqlConsulta.FieldByName('cupoa13id').AsString;
             sqlC175.open;
             sqlC175.First;
+            sqlC175.DisableControls;
             while not sqlC175.Eof do
             begin
               VL_PIS := VL_PIS + sqlC175VALOR_PIS.AsFloat;
@@ -856,8 +863,7 @@ begin
                     ALIQ_COFINS := 0;
                   end;
                 end;
-                COD_CTA := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'PLCTA15CODCRED',
-                  sqlConsulta.FieldByName('OPESICOD').AsString);
+                COD_CTA := sqlConsulta.FieldByName('PLCTA15CODCRED').AsString;
                 INFO_COMPL := '';
               end;
               sqlC175.Next;
@@ -867,7 +873,8 @@ begin
               VL_MERC := Total_C175;
             end;
           end;
-          Application.ProcessMessages;
+          if Posicao mod 500 = 0  then
+            Application.ProcessMessages;
           sqlConsulta.Next;
         end;
         sqlConsulta.EnableControls;
@@ -876,10 +883,12 @@ begin
         Msg := 'Abrindo Notas Fiscais';
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;
-        sqlConsulta.SQL.Add('Select N.*, C.CLIEA60CIDRES, F.FORNA60CID, E.EMPRA60CID from NOTAFISCAL N ');
+        sqlConsulta.SQL.Add('Select N.*, C.CLIEA60CIDRES, F.FORNA60CID, E.EMPRA60CID, ');
+        sqlConsulta.SQL.Add('O.OPESCENTRADASAIDA, O.COD_SIT_DOCUMENTO, O.OPERACAO_E_S, O.PLCTA15CODCRED from NOTAFISCAL N ');
         sqlConsulta.SQL.Add('lEFT JOIN CLIENTE C ON C.CLIEA13ID = N.CLIEA13ID  ');
         sqlConsulta.SQL.Add('LEFT JOIN FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
         sqlConsulta.SQL.Add('LEFT JOIN EMPRESA E ON E.EMPRICOD = N.EMPRICOD ');
+        sqlConsulta.SQL.Add('LEFT JOIN OPERACAOESTOQUE O ON O.OPESICOD = N.OPESICOD ');
         sqlConsulta.SQL.Add('where (N.NOFIDEMIS>=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') and ');
         sqlConsulta.SQL.Add('(N.NOFIDEMIS <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') AND ');
         sqlConsulta.SQL.Add('N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString + ' AND N.NOFICSTATUS <> ''A'' and ');
@@ -906,7 +915,7 @@ begin
             if sqlConsulta.FieldByName('NOFA1ENTRADASAIDA').AsString = '' then
             // // 02 IND_OPER Indicador do tipo de operação: C 001* - S - 0- Entrada;  1- Saída
             begin
-              if SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'OPESCENTRADASAIDA', sqlConsulta.FieldByName('OPESICOD').AsString) = 'E' Then
+              if sqlConsulta.FieldByName('OPESCENTRADASAIDA').AsString = 'E' Then
               begin
                 EntradaSaida := '0';
               end
@@ -947,7 +956,8 @@ begin
 
             COD_MOD := '55';
 
-            Cod_Situacao := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'COD_SIT_DOCUMENTO', sqlConsulta.FieldByName('OPESICOD').AsString);
+//            Cod_Situacao := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'COD_SIT_DOCUMENTO', sqlConsulta.FieldByName('OPESICOD').AsString);
+            Cod_Situacao := sqlConsulta.FieldByName('COD_SIT_DOCUMENTO').AsString;
             if Cod_Situacao = EmptyStr then
               Cod_Situacao := '00';
             if sqlConsulta.FieldByName('NOFICSTATUS').AsString = 'C' then
@@ -1025,8 +1035,10 @@ begin
                 UNID := sqlConsulta2.FieldByName('UNIDA5DESCR').AsString;
                 VL_ITEM := ValorBase;
                 VL_DESC := sqlConsulta2.FieldByName('NFITN2VLRDESC').AsFloat;
-                OpEntraSai := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'OPERACAO_E_S',
-                  sqlConsulta.FieldByName('OPESICOD').AsString);
+//                OpEntraSai := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'OPERACAO_E_S',
+//                  sqlConsulta.FieldByName('OPESICOD').AsString);
+                OpEntraSai := sqlConsulta.FieldByName('OPERACAO_E_S').AsString;
+
                 if OpEntraSai = 'N' then
                   IND_MOV := mfNao
                 else
@@ -1150,13 +1162,15 @@ begin
                 // ALIQ_COFINS_R := 0;
                 VL_COFINS := ValorBase * (sqlConsulta2.FieldByName('PRODN2ALIQCOFINS')
                   .Value / 100);
-                COD_CTA := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'PLCTA15CODCRED',
-                  sqlConsulta.FieldByName('OPESICOD').AsString);
+//                COD_CTA := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'PLCTA15CODCRED',
+//                  sqlConsulta.FieldByName('OPESICOD').AsString);
+                COD_CTA := sqlConsulta.FieldByName('PLCTA15CODCRED').AsString;
               end; // Fim dos Itens;
               sqlConsulta2.Next;
             end; {$ENDREGION}
           end;
-          Application.ProcessMessages;
+          if Posicao mod 500 = 0  then
+            Application.ProcessMessages;
           sqlConsulta.Next;
         end; {$ENDREGION}
 {$REGION 'Nota Compra'}
@@ -1198,8 +1212,11 @@ begin
         sqlConsulta.SQL.Add('(select sum(I.NOCIN3VLRFRETE) ');
         sqlConsulta.SQL.Add('from NOTACOMPRAITEM I ');
         sqlConsulta.SQL.Add
-          ('where I.NOCPA13ID = N.NOCPA13ID) as VL_FRETE, N.*, F.FORNA2UF ');
+          ('where I.NOCPA13ID = N.NOCPA13ID) as VL_FRETE, N.*, F.FORNA2UF, ');
+        sqlConsulta.SQL.Add(' o.OPERACAO_E_S, S.COD_PART ');
         sqlConsulta.SQL.Add('from NOTACOMPRA N ');
+        sqlConsulta.SQL.Add('left join OPERACAOESTOQUE O on O.OPESICOD = N.OPESICOD ');
+        sqlConsulta.SQL.Add('left join SPED_0150 S on s.COD_FORN = N.FORNICOD ');
         sqlConsulta.SQL.Add('left join FORNECEDOR F on F.FORNICOD = N.FORNICOD ');
         sqlConsulta.SQL.Add('where N.NOCPDRECEBIMENTO >= ''' + FormatDateTime('mm/dd/yyyy',
           DataInicial) + ''' AND ');
@@ -1246,8 +1263,7 @@ begin
               Chave := '';
             IND_OPER := tpEntradaAquisicao;
             IND_EMIT := edTerceiros;
-            COD_PART := SQLLocate('SPED_0150', 'COD_FORN', 'COD_PART',
-              sqlConsulta.FieldByName('FORNICOD').AsString);
+            COD_PART := sqlConsulta.FieldByName('COD_PART').AsString;
             sqlConsulta.FieldByName('CLIEA13ID').AsString;
             sqlSerie.Close;
             sqlSerie.ParamByName('ID_NOTA').AsString :=
@@ -1325,8 +1341,7 @@ begin
                 UNID := sqlConsulta2.FieldByName('UNIDA5DESCR').AsString;
                 VL_ITEM := ValorBase;
                 VL_DESC := sqlConsulta2.FieldByName('NOCIN3VLRDESC').AsFloat;
-                OpEntraSai := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'OPERACAO_E_S',
-                  sqlConsulta.FieldByName('OPESICOD').AsString);
+                OpEntraSai := sqlConsulta.FieldByName('OPERACAO_E_S').AsString;
                 if OpEntraSai = 'N' then
                   IND_MOV := mfNao
                 else
@@ -1425,7 +1440,8 @@ begin
               sqlConsulta2.Next;
             end; {$ENDREGION}
           end;
-          Application.ProcessMessages;
+          if Posicao mod 500 = 0  then
+            Application.ProcessMessages;
           sqlConsulta.Next;
         end; {$ENDREGION}
       end;
@@ -1468,8 +1484,9 @@ begin
     ('(select sum(I.NOCIN2BASEPIS) from NOTACOMPRAITEM I where I.NOCPA13ID = N.NOCPA13ID) as VL_BC_PIS, ');
   sqlConsulta.SQL.Add
     ('(select sum(I.NOCIN2BASECOFINS) from NOTACOMPRAITEM I where I.NOCPA13ID = N.NOCPA13ID) as VL_BC_COFINS, ');
-  sqlConsulta.SQL.Add('N.*, F.FORNA2UF from NOTACOMPRA N ');
+  sqlConsulta.SQL.Add('N.*, F.FORNA2UF, S.COD_PART from NOTACOMPRA N ');
   sqlConsulta.SQL.Add('Left Join FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
+  sqlConsulta.SQL.Add('Left Join SPED_0150 S ON S.COD_FORN = N.FORNICOD ');
   sqlConsulta.SQL.Add('where N.NOCPDRECEBIMENTO >= ''' + FormatDateTime('mm/dd/yyyy',
     DataInicial) + ''' AND ');
   sqlConsulta.SQL.Add('N.NOCPDRECEBIMENTO <= ''' + FormatDateTime('mm/dd/yyyy', DataFinal) +
@@ -1483,8 +1500,9 @@ begin
     with ACBrSPEDPisCofins1.Bloco_C.RegistroC500New do
     begin
       Msg := 'Gerando registro C001';
-      COD_PART := SQLLocate('SPED_0150', 'COD_FORN', 'COD_PART',
-        sqlConsulta.FieldByName('FORNICOD').AsString);
+//      COD_PART := SQLLocate('SPED_0150', 'COD_FORN', 'COD_PART',
+//        sqlConsulta.FieldByName('FORNICOD').AsString);
+      COD_PART := sqlConsulta.FieldByName('COD_PART').AsString;
       COD_MOD := '06';
       COD_SIT := StrToCodSit('00');
       SER := copy(sqlConsulta.FieldByName('NOCPA5SERIE').AsString, 0, 3);
@@ -2077,9 +2095,11 @@ begin
     sqlConsulta.SQL.Add('(N.EMPRICOD=' + qryEmpresaEMPRICOD.AsString +
       ') and (N.NOFICSTATUS = ''E'')');
     sqlConsulta.open;
+    Posicao := 0;
     while not sqlConsulta.Eof do
     begin
       try
+        Posicao := Posicao + 1;
         sqlParticipantes.Insert;
         sqlParticipantesCOD_PART.AsString := sqlConsulta.FieldByName('CLIEA13ID').AsString;
         sqlParticipantesNOME.AsString := sqlConsulta.FieldByName('CLIEA60RAZAOSOC').AsString;
@@ -2146,7 +2166,8 @@ begin
           Showmessage('Erro ao criar Participante Nota Fiscal' + E.Message);
         end;
       end;
-      Application.ProcessMessages;
+      if Posicao mod 100 = 0  then
+        Application.ProcessMessages;
       sqlConsulta.Next;
     end;
     sqlConsulta.Close;
@@ -2159,10 +2180,12 @@ begin
     sqlConsulta.SQL.Add('AND (N.NOFIDEMIS <=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') and ');
     sqlConsulta.SQL.Add('(N.EMPRICODDEST IS NOT NULL) and (N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ') and (N.NOFICSTATUS = ''E'')');
     sqlConsulta.open;
+    Posicao := 0;
     while not sqlConsulta.Eof do
     begin
       // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (EMPRESAS)
       try
+        Posicao := Posicao + 1;
         sqlParticipantes.Append;
         sqlParticipantesCOD_PART.AsString := 'E' + sqlConsulta.FieldByName
           ('EMPRICOD').AsString;
@@ -2199,7 +2222,8 @@ begin
           exit;
         end;
       end;
-      Application.ProcessMessages;
+      if Posicao mod 100 = 0  then
+        Application.ProcessMessages;
       sqlConsulta.Next;
     end;
     sqlConsulta.Close;
@@ -2213,10 +2237,12 @@ begin
     sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOFICSTATUS = ''E'') and');
     sqlConsulta.SQL.Add('(N.Empricod = ' + qryEmpresaEMPRICOD.AsString + ')');
     sqlConsulta.open;
+    Posicao := 0;
     while not sqlConsulta.Eof do
     begin
       // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (EMPRESAS)
       try
+        Posicao := Posicao + 1;
         sqlParticipantes.Append;
         sqlParticipantesCOD_PART.AsString := 'f' + sqlConsulta.FieldByName
           ('FORNICOD').AsString;
@@ -2258,7 +2284,8 @@ begin
           exit;
         end;
       end;
-      Application.ProcessMessages;
+      if Posicao mod 100 = 0  then
+        Application.ProcessMessages;
       sqlConsulta.Next;
     end;
     sqlConsulta.Close;
@@ -2273,10 +2300,12 @@ begin
     sqlConsulta.SQL.Add('N.EMPRICODDESTCOMPRA = ' + qryEmpresaEMPRICOD.AsString + ' AND ');
     sqlConsulta.SQL.Add('(N.FORNICOD IS NOT NULL) and (N.NOCPCSTATUS = ''E'') ');
     sqlConsulta.open;
+    Posicao := 0;
     while not sqlConsulta.Eof do
     begin
       // Registro 0150 - ABERTURA DO REGISTRO 0150 - DADOS DOS PARTICIPANTES (CLIENTES E FORNECEDORES)
       try
+        Posicao := Posicao + 1;
         Achou := 'N';
         if sqlConsulta.FieldByName('FORNA14CGC').AsString <> '' then
           if sqlParticipantes.Locate('CNPJ', sqlConsulta.FieldByName('FORNA14CGC')
@@ -2377,7 +2406,8 @@ begin
           exit;
         end;
       end;
-      Application.ProcessMessages;
+      if Posicao mod 100 = 0  then
+        Application.ProcessMessages;
       sqlConsulta.Next;
     end;
 
@@ -2390,9 +2420,11 @@ begin
     sqlConsulta.SQL.Add('(C.DT_AQUIS <=''' + FormatDateTime('dd/dd/yyyy',
       DataFinal) + ''')');
     sqlConsulta.open;
+    Posicao := 0;
     while not sqlConsulta.Eof do
     begin
       try
+        Posicao := Posicao + 1;
         Achou := 'N';
         if sqlConsulta.FieldByName('TRANA14CGC').AsString <> '' then
           if sqlParticipantes.Locate('CNPJ', sqlConsulta.FieldByName('TRANA14CGC')
@@ -2481,7 +2513,8 @@ begin
           exit;
         end;
       end;
-      Application.ProcessMessages;
+      if Posicao mod 100 = 0  then
+        Application.ProcessMessages;
       sqlConsulta.Next;
     end;
   finally
@@ -2642,6 +2675,7 @@ procedure TDMSpedPisCofins.setPosicao(const Value: Integer);
 begin
   if Assigned(FevProgressao) then
     FevProgressao(Value);
+  FPosicao := Value;
 end;
 
 

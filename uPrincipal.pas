@@ -231,7 +231,7 @@ end;
 
 procedure TfrmPrincipal.evProgressao(Posicao: Integer);
 begin
-  Gauge1.AddProgress(Posicao);
+  Gauge1.Progress := Posicao;
   Gauge1.Update;
 end;
 
