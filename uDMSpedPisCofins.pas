@@ -719,7 +719,7 @@ begin
         Msg := 'Abrindo cupom Fiscal';
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;
-        sqlConsulta.SQL.Add('Select N.*, O.PLCTA15CODCRED from CUPOM N ');
+        sqlConsulta.SQL.Add('Select O.PLCTA15CODCRED, N.* from CUPOM N ');
         sqlConsulta.SQL.Add('left join OPERACAOESTOQUE O on O.OPESICOD = N.OPESICOD ');
         sqlConsulta.SQL.Add('Where (N.CUPODEMIS>=''' + FormatDateTime('mm/dd/yyyy', DataInicial) + ''') ');
         sqlConsulta.SQL.Add('and (N.CUPODEMIS<=''' + FormatDateTime('mm/dd/yyyy', DataFinal) + ''') AND ');
@@ -883,8 +883,8 @@ begin
         Msg := 'Abrindo Notas Fiscais';
         sqlConsulta.Close;
         sqlConsulta.SQL.Clear;
-        sqlConsulta.SQL.Add('Select N.*, C.CLIEA60CIDRES, F.FORNA60CID, E.EMPRA60CID, ');
-        sqlConsulta.SQL.Add('O.OPESCENTRADASAIDA, O.COD_SIT_DOCUMENTO, O.OPERACAO_E_S, O.PLCTA15CODCRED from NOTAFISCAL N ');
+        sqlConsulta.SQL.Add('Select O.PLCTA15CODCRED, O.PLCTA15CODDEB, N.*, C.CLIEA60CIDRES, F.FORNA60CID, E.EMPRA60CID, ');
+        sqlConsulta.SQL.Add('O.OPESCENTRADASAIDA, O.COD_SIT_DOCUMENTO, O.OPERACAO_E_S from NOTAFISCAL N ');
         sqlConsulta.SQL.Add('lEFT JOIN CLIENTE C ON C.CLIEA13ID = N.CLIEA13ID  ');
         sqlConsulta.SQL.Add('LEFT JOIN FORNECEDOR F ON F.FORNICOD = N.FORNICOD ');
         sqlConsulta.SQL.Add('LEFT JOIN EMPRESA E ON E.EMPRICOD = N.EMPRICOD ');
@@ -1158,13 +1158,12 @@ begin
 
                 VL_BC_COFINS := ValorBase;
                 ALIQ_COFINS_PERC := sqlConsulta2.FieldByName('PRODN2ALIQCOFINS').Value;
-                // QUANT_BC_COFINS := 0;
-                // ALIQ_COFINS_R := 0;
                 VL_COFINS := ValorBase * (sqlConsulta2.FieldByName('PRODN2ALIQCOFINS')
                   .Value / 100);
-//                COD_CTA := SQLLocate('OPERACAOESTOQUE', 'OPESICOD', 'PLCTA15CODCRED',
-//                  sqlConsulta.FieldByName('OPESICOD').AsString);
-                COD_CTA := sqlConsulta.FieldByName('PLCTA15CODCRED').AsString;
+                if EntradaSaida = '0' then
+                  COD_CTA := sqlConsulta.FieldByName('PLCTA15CODDEB').AsString
+                else
+                  COD_CTA := sqlConsulta.FieldByName('PLCTA15CODCRED').AsString;
               end; // Fim dos Itens;
               sqlConsulta2.Next;
             end; {$ENDREGION}
