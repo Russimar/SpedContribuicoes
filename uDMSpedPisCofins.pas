@@ -1966,6 +1966,22 @@ begin
       begin
         VL_TOT_CONT_NC_PER := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
         VL_TOT_CRED_DESC := sqlConsulta2.FieldByName('VALOR_COFINS').AsFloat;
+        VL_TOT_CRED_DESC_ANT := 0;
+        VL_TOT_CONT_NC_DEV := VL_TOT_CONT_NC_PER - VL_TOT_CRED_DESC -
+          VL_TOT_CRED_DESC_ANT;
+        if VL_TOT_CONT_NC_DEV < 0 then
+          VL_TOT_CONT_NC_DEV := 0;
+        VL_RET_NC := 0;
+        VL_OUT_DED_NC := 0;
+        VL_CONT_NC_REC := VL_TOT_CONT_NC_DEV - VL_RET_NC - VL_OUT_DED_NC;
+        VL_TOT_CONT_REC := VL_CONT_NC_REC;
+
+        with ACBrSPEDPisCofins1.Bloco_M.RegistroM605New do
+        begin
+          NUM_CAMPO := '08';
+          COD_REC := '691201';
+          VL_DEBITO := VL_TOT_CONT_REC;
+        end;
       end;
     end;
 

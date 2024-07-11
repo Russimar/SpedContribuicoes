@@ -66,6 +66,7 @@ type
     procedure BitBtn1Click(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure btnDiretorioClick(Sender: TObject);
+    procedure DeChange(Sender: TObject);
   private
     Arquivo: TextFile;
     TotalRegistros: Integer;
@@ -182,6 +183,7 @@ begin
 
   with fDMSpedPisCofins do
   begin
+    ListaEmpressa.Clear;
     qryEmpresa.First;
     while not qryEmpresa.Eof do
     begin
@@ -214,6 +216,11 @@ begin
     fDMSpedPisCofins.CaminhoArquivo := Dir + '\';
     edtCaminho.Text := fDMSpedPisCofins.CaminhoArquivo;
   end;
+end;
+
+procedure TfrmPrincipal.DeChange(Sender: TObject);
+begin
+  para.Date := EndOfTheMonth(de.Date);
 end;
 
 procedure TfrmPrincipal.evMaxProgress(Max: Integer);

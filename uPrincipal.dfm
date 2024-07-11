@@ -76,6 +76,7 @@ object frmPrincipal: TfrmPrincipal
       Date = 43891.000000000000000000
       Time = 0.572525659721577500
       TabOrder = 0
+      OnChange = DeChange
     end
     object Para: TDateTimePicker
       Left = 509
