@@ -299,7 +299,7 @@ begin
   begin
     LinhasBuffer := 1000;
   end;
-  qryEmpresa.First;
+  qryEmpresa.Locate('EMPRICOD',ListaEmpressa[0],[loCaseInsensitive]);
   with ACBrSPEDPisCofins1.Bloco_0.Registro0000New do
   begin
     Msg := 'Gerando registro 0000';
@@ -428,7 +428,7 @@ var
 begin
   Msg := 'Gerando registro 0140';
   fDMConnection.FDConnection.ExecSQL('delete from SPED_0150');
-  for I := 0 to Pred(FListaEmpressa.Count) do
+  for I := 1 to Pred(FListaEmpressa.Count) do
   begin
     with ACBrSPEDPisCofins1.Bloco_0 do
     begin
@@ -1817,8 +1817,7 @@ begin
     begin
       with ACBrSPEDPisCofins1.Bloco_M.RegistroM410New do
       begin
-        NAT_REC := FormatFloat('000', sqlConsulta.FieldByName('NATUREZA_RECEITA')
-          .AsInteger);
+        NAT_REC := FormatFloat('000', StrToIntDef(sqlConsulta.FieldByName('NATUREZA_RECEITA').AsString,0));
         VL_REC := sqlConsulta.FieldByName('VALOR_BASE').AsFloat;
         COD_CTA := Mem400PlanoConta.AsString;
       end;
@@ -2070,8 +2069,7 @@ begin
     begin
       with ACBrSPEDPisCofins1.Bloco_M.RegistroM810New do
       begin
-        NAT_REC := FormatFloat('000', sqlConsulta.FieldByName('NATUREZA_RECEITA')
-          .AsInteger);
+        NAT_REC := FormatFloat('000', StrToIntDef(sqlConsulta.FieldByName('NATUREZA_RECEITA').AsString,0));
         VL_REC := sqlConsulta.FieldByName('VALOR_BASE').AsFloat;
         COD_CTA := Mem800PlanoConta.AsString;
       end;
