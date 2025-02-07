@@ -517,8 +517,8 @@ object DMSpedPisCofins: TDMSpedPisCofins
     SQL.Strings = (
       
         'select CI.CUPOA13ID, P.PRODA2CSTPIS, P.PRODA2CSTCOFINS,coalesce(' +
-        'p.prodn2aliqpis,0) ALIQUOTA_PIS,'
-      '       coalesce(p.prodn2aliqcofins,0) ALIQUOTA_COFINS, CI.CFOP,'
+        'CI.ALIQUOTA_PIS,0) ALIQUOTA_PIS,'
+      '       coalesce(CI.ALIQUOTA_COFINS,0) ALIQUOTA_COFINS, CI.CFOP,'
       
         '       sum(round(CI.TOTAL_ITEM * (coalesce(CI.ALIQUOTA_PIS, 0) /' +
         ' 100), 2)) VALOR_PIS,'

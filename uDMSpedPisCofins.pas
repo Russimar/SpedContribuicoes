@@ -7,6 +7,7 @@ uses
   System.Classes,
   ACBrBase,
   ACBrSpedPisCofins,
+  ACBrUtil.Strings,
   uDMConnection,
   FireDAC.Stan.Intf,
   FireDAC.Stan.Option,
@@ -175,6 +176,7 @@ type
     EntradaSaida: String;
     Chave: String;
     FListaEmpressa: TStringList;
+    function ListaEmpresaToSql(ACampo: string): string;
     procedure Gravar_0150;
     procedure Gravar_0190;
     procedure Gravar_0200;
@@ -368,10 +370,10 @@ begin
   begin
 
     NOME := qryEmpresaEMPRA60CONTADOR.AsString;
-    CPF := qryEmpresaEMPRA20CPFCONTADOR.AsString;
+    CPF := OnlyNumber(qryEmpresaEMPRA20CPFCONTADOR.AsString);
     CRC := qryEmpresaEMPRA15CRCCONTADOR.AsString;
-    CNPJ := qryEmpresaEMPRA14CNPJCONTADOR.AsString;
-    CEP := qryEmpresaEMPRA8CEPCONTADOR.AsString;
+    CNPJ := OnlyNumber(qryEmpresaEMPRA14CNPJCONTADOR.AsString);
+    CEP := OnlyNumber(qryEmpresaEMPRA8CEPCONTADOR.AsString);
     ENDERECO := qryEmpresaEMPRA60ENDCONTADOR.AsString;
     NUM := '';
     COMPL := '';
@@ -428,7 +430,7 @@ var
 begin
   Msg := 'Gerando registro 0140';
   fDMConnection.FDConnection.ExecSQL('delete from SPED_0150');
-  for I := 1 to Pred(FListaEmpressa.Count) do
+  for I := 0 to Pred(FListaEmpressa.Count) do
   begin
     with ACBrSPEDPisCofins1.Bloco_0 do
     begin
@@ -439,9 +441,9 @@ begin
           qryEmpresa.Locate('EMPRICOD',ListaEmpressa[i],[loCaseInsensitive]);
           COD_EST := qryEmpresaEMPRICOD.AsString;
           NOME := qryEmpresaEMPRA60RAZAOSOC.AsString;
-          CNPJ := qryEmpresaEMPRA14CGC.AsString;
+          CNPJ := OnlyNumber(qryEmpresaEMPRA14CGC.AsString);
           UF := qryEmpresaEMPRA2UF.AsString;
-          IE := qryEmpresaEMPRA20IE.AsString;
+          IE := OnlyNumber(qryEmpresaEMPRA20IE.AsString);
           COD_MUN := qryEmpresaEMPRIMUNICODFED.AsInteger;
           IM := '';
           SUFRAMA := '';
@@ -478,9 +480,9 @@ begin
         COD_PART := sqlParticipantesCOD_PART.AsString;
         NOME := sqlParticipantesNOME.AsString;
         COD_PAIS := sqlParticipantesCOD_PAIS.AsString;
-        CNPJ := sqlParticipantesCNPJ.AsString;
-        CPF := sqlParticipantesCPF.AsString;
-        IE := sqlParticipantesIE.AsString;
+        CNPJ := OnlyNumber(sqlParticipantesCNPJ.AsString);
+        CPF := OnlyNumber(sqlParticipantesCPF.AsString);
+        IE := OnlyNumber(sqlParticipantesIE.AsString);
         COD_MUN := sqlParticipantesCOD_MUN.AsInteger;
         SUFRAMA := '';
         ENDERECO := sqlParticipantesENDERECO.AsString;
@@ -1345,12 +1347,14 @@ begin
                   IND_MOV := mfNao
                 else
                   IND_MOV := mfSim;
-                if length(sqlConsulta2.FieldByName('NOCIA3CSTICMS').Value) < 3 then
+
+                CST := sqlConsulta2.FieldByName('CST_ICMS_ORIGINAL').Value;
+                if CST.IsEmpty then
+                  CST := sqlConsulta2.FieldByName('NOCIA3CSTICMS').Value;
+
+                if length(CST) < 3 then
                   CST := sqlConsulta2.FieldByName('PRODIORIGEM').AsString +
-                    FormatFloat('00', sqlConsulta2.FieldByName('NOCIA3CSTICMS').Value)
-                else
-                  CST := FormatFloat('000',
-                    sqlConsulta2.FieldByName('NOCIA3CSTICMS').Value);
+                    PadLeft(CST,2,'0');
                 CST_ICMS := StrToCstIcms(CST);
                 if sqlConsulta2.FieldByName('CFOPA5CODAUX').AsString <> '' Then
                   CFOP := sqlConsulta2.FieldByName('CFOPA5CODAUX').AsString
@@ -1358,11 +1362,11 @@ begin
                   CFOP := sqlConsulta.FieldByName('CFOPA5COD').AsString;
                 COD_NAT := sqlConsulta.FieldByName('OPESICOD').AsString;
 
-                if (sqlConsulta2.FieldByName('NOCIA3CSTICMS').AsInteger
+                if (StrToInt(CST)
                   in ([10, 30, 40, 41, 50, 51, 60, 70, 90])) or
-                  (sqlConsulta2.FieldByName('NOCIA3CSTICMS').AsInteger
+                  (StrToInt(CST)
                   in ([130, 140, 141, 150, 151, 160])) or
-                  (sqlConsulta2.FieldByName('NOCIA3CSTICMS').AsInteger - 200
+                  (StrToInt(CST) - 200
                   in ([10, 30, 40, 41, 50, 51, 60, 70, 90])) then
                 begin
                   VL_BC_ICMS := 0;
@@ -1376,11 +1380,11 @@ begin
                   VL_ICMS := sqlConsulta2.FieldByName('NOCIN3VLRICMS').AsFloat;
                 end;
 
-                if (sqlConsulta2.FieldByName('NOCIA3CSTICMS').AsInteger
+                if (StrToInt(CST)
                   in ([10, 30, 40, 41, 50, 51, 60, 70, 90])) or
-                  (sqlConsulta2.FieldByName('NOCIA3CSTICMS').AsInteger
+                  (StrToInt(CST)
                   in ([130, 140, 141, 150, 151, 160])) or
-                  (sqlConsulta2.FieldByName('NOCIA3CSTICMS').AsInteger - 200
+                  (StrToInt(CST) - 200
                   in ([10, 30, 40, 41, 50, 51, 60, 70, 90])) then
                 begin
                   VL_BC_ICMS_ST := 0;
@@ -1597,6 +1601,7 @@ begin
   sqlConsulta.SQL.Add('WHERE SP.data_emissao between ' +
     QuotedStr(FormatDateTime('mm/dd/yyyy', DataInicial)) + ' AND ');
   sqlConsulta.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy', DataFinal)));
+  sqlConsulta.SQL.Add(' and ' + ListaEmpresaToSql('EMPRESA'));
   sqlConsulta.SQL.Add('group by SP.CST_PIS, SP.PERC_PIS, SP.COD_BASE_CALCULO ');
   sqlConsulta.open;
 
@@ -1611,6 +1616,7 @@ begin
     QuotedStr(FormatDateTime('mm/dd/yyyy', DataInicial)) + ' AND ');
   sqlConsulta2.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy', DataFinal)));
   sqlConsulta2.SQL.Add(' AND SP.ALIQ_PIS > 0 ');
+  sqlConsulta2.SQL.Add(' and ' + ListaEmpresaToSql('EMPRESA'));
   sqlConsulta2.SQL.Add('group by CST_PIS, SP.ALIQ_PIS');
 
   sqlConsulta2.open;
@@ -1702,6 +1708,7 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM200;
 begin
+  Msg := 'Gerando registro M200';
   sqlConsulta2.First;
   while not sqlConsulta2.Eof do
   begin
@@ -1773,6 +1780,7 @@ begin
   sqlConsulta.SQL.Add(QuotedStr('04') + ',' + QuotedStr('06') + ', ' +
     QuotedStr('07') + ', ');
   sqlConsulta.SQL.Add(QuotedStr('08') + ', ' + QuotedStr('09') + ')');
+  sqlConsulta.SQL.Add(' and ' + ListaEmpresaToSql('EMPRESA'));
   sqlConsulta.SQL.Add('group by SP.CST_PIS, SP.NATUREZA_RECEITA, SP.CONTA');
   sqlConsulta.open;
   Mem400.Close;
@@ -1834,13 +1842,11 @@ var
   Aliq_Cofins_Empresa: Real;
   CodigoCredito: Integer;
 begin
-
   Msg := 'Gerando registro M500';
   Aliq_Cofins_Empresa := StrToFloat(SQLLocate('EMPRESA', 'EMPRICOD', 'PERC_COFINS',
     qryEmpresaEMPRICOD.AsString));
   Aliq_Cofins_Empresa := StrToFloatDef(FormatFloat('0.00', Aliq_Cofins_Empresa), 0);
 
-  Msg := 'Gerando registro M100';
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add('Select sum(SP.VALOR_BASE_COFINS) VALOR_BASE_COFINS, ');
@@ -1850,6 +1856,7 @@ begin
   sqlConsulta.SQL.Add('WHERE SP.data_emissao between ' +
     QuotedStr(FormatDateTime('mm/dd/yyyy', DataInicial)) + ' AND ');
   sqlConsulta.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy', DataFinal)));
+  sqlConsulta.SQL.Add(' and ' + ListaEmpresaToSql('EMPRESA'));
   sqlConsulta.SQL.Add('group by SP.CST_COFINS, SP.PERC_COFINS, SP.COD_BASE_CALCULO ');
   sqlConsulta.open;
 
@@ -1864,6 +1871,7 @@ begin
     QuotedStr(FormatDateTime('mm/dd/yyyy', DataInicial)) + ' AND ');
   sqlConsulta2.SQL.Add(QuotedStr(FormatDateTime('mm/dd/yyyy', DataFinal)));
   sqlConsulta2.SQL.Add(' AND SP.ALIQ_COFINS > 0 ');
+  sqlConsulta2.SQL.Add(' and ' + ListaEmpresaToSql('EMPRESA'));
   sqlConsulta2.SQL.Add('group by CST_COFINS, SP.ALIQ_COFINS');
   sqlConsulta2.open;
 
@@ -1956,6 +1964,7 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM600;
 begin
+  Msg := 'Gerando registro M600';
   sqlConsulta2.First;
   while not sqlConsulta2.Eof do
   begin
@@ -2013,7 +2022,7 @@ end;
 
 procedure TDMSpedPisCofins.Gerar_Bloco_M_RegM800;
 begin
-  Msg := 'Gerando registro M500';
+  Msg := 'Gerando registro M800';
   sqlConsulta.Close;
   sqlConsulta.SQL.Clear;
   sqlConsulta.SQL.Add
@@ -2027,6 +2036,7 @@ begin
   sqlConsulta.SQL.Add(QuotedStr('04') + ',' + QuotedStr('06') + ', ' +
     QuotedStr('07') + ', ');
   sqlConsulta.SQL.Add(QuotedStr('08') + ', ' + QuotedStr('09') + ')');
+  sqlConsulta.SQL.Add(' and ' + ListaEmpresaToSql('EMPRESA'));
   sqlConsulta.SQL.Add('group by SP.CST_COFINS, SP.NATUREZA_RECEITA, SP.CONTA');
   sqlConsulta.open;
   Mem800.Close;
@@ -2665,6 +2675,19 @@ end;
 procedure TDMSpedPisCofins.Gravar_C100;
 begin
 
+end;
+
+function TDMSpedPisCofins.ListaEmpresaToSql(ACampo: string): string;
+var
+  LIds: string;
+begin
+  for var I := 0 to Pred(FListaEmpressa.Count) do
+  begin
+    if not LIds.IsEmpty then
+      LIds := LIds + ', ';
+    LIds := LIds + QuotedStr(FListaEmpressa.Strings[i]);
+  end;
+  Result := ACampo + ' in (' + LIds + ')';
 end;
 
 procedure TDMSpedPisCofins.SetListaEmpressa(const Value: TStringList);
